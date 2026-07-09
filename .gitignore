@@ -1,0 +1,13 @@
+.commandcode/
+target/
+node_modules/
+dist/
+.haven/
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.*
+*.log
+.pi/extensions/emdash-hook.ts
+.opencode/plugins/emdash-notifications.js
