@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/okf",
+    "crates/haven-git",
+    "crates/haven-index",
+    "src-tauri",
+]
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+anyhow = "1"
+tokio = { version = "1", features = ["full"] }
+parking_lot = "0.12"
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+license = "Apache-2.0"
+repository = "https://github.com/sodown4thecause/haven-second-brain"
