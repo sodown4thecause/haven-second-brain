@@ -209,10 +209,10 @@ impl VaultWriter {
                 Ok(b) => Some(sha256_hex(&b)),
                 Err(_) => None,
             };
-            if expected != on_disk_hash.as_deref() {
+            if Some(expected.as_str()) != on_disk_hash.as_deref() {
                 return Err(GitError::HashMismatch {
                     path: confined,
-                    pre: expected.map(String::from),
+                    pre: Some(expected),
                     post: on_disk_hash,
                 });
             }
@@ -262,11 +262,7 @@ impl VaultWriter {
         index.clear()?;
         let blob_oid = repo.blob(&write.new_content)?;
         let mut builder = repo.treebuilder(None)?;
-        builder.insert(
-            relative.to_string_lossy().as_ref(),
-            blob_oid,
-            ObjectType::Blob,
-        )?;
+        builder.insert(Path::new(&relative), blob_oid, ObjectType::Blob)?;
         let tree_oid = builder.write()?;
         let tree = repo.find_tree(tree_oid)?;
         write_commit(&mut repo, &tree, &write, &self.inner.identity)
@@ -411,9 +407,6 @@ mod tests {
     #[test]
     fn opens_or_inits_a_vault_repo() {
         let td = new_vault();
-        let id = Identity::founder_default("qwen3.5:4b");
-        let writer =
-            VaultWriter::open(td.path(), id.clone(), OwnedAllowlist::default_vault()).unwrap();
         let repo = Repository::open(td.path()).unwrap();
         assert!(repo.is_empty().unwrap_or(true));
     }
@@ -442,16 +435,9 @@ mod tests {
             })
             .unwrap();
         assert_eq!(receipt.author_kind, "agent");
-        let head = Repository::open(td.path())
-            .unwrap()
-            .head()
-            .unwrap()
-            .target()
-            .unwrap();
-        let commit = Repository::open(td.path())
-            .unwrap()
-            .find_commit(head)
-            .unwrap();
+        let repo = Repository::open(td.path()).unwrap();
+        let head = repo.head().unwrap().target().unwrap();
+        let commit = repo.find_commit(head).unwrap();
         let author = commit.author();
         assert_eq!(author.name().unwrap(), id.agent_name);
         assert_eq!(author.email().unwrap(), id.agent_email);
@@ -513,16 +499,9 @@ mod tests {
             })
             .unwrap();
         assert_eq!(receipt.author_kind, "human");
-        let head = Repository::open(td.path())
-            .unwrap()
-            .head()
-            .unwrap()
-            .target()
-            .unwrap();
-        let commit = Repository::open(td.path())
-            .unwrap()
-            .find_commit(head)
-            .unwrap();
+        let repo = Repository::open(td.path()).unwrap();
+        let head = repo.head().unwrap().target().unwrap();
+        let commit = repo.find_commit(head).unwrap();
         let author = commit.author();
         assert_eq!(author.name().unwrap(), id.human_name);
     }
@@ -538,7 +517,7 @@ mod tests {
         .unwrap();
         let user_path = td.path().join("README.md");
         std::fs::write(&user_path, b"user staged content").unwrap();
-        let mut repo = Repository::open(td.path()).unwrap();
+        let repo = Repository::open(td.path()).unwrap();
         let mut index = repo.index().unwrap();
         std::fs::create_dir_all(td.path().join(".git")).ok();
         index.add_path(Path::new("README.md")).ok();
