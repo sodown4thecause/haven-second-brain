@@ -1,0 +1,21 @@
+[package]
+name = "haven-index"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+rusqlite = { workspace = true }
+parking_lot = { workspace = true }
+log = { workspace = true }
+once_cell = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+proptest = { workspace = true }
+walkdir = { workspace = true }
+ignore = { workspace = true }
