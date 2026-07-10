@@ -30,10 +30,12 @@ function toSnippetLines(snippet: string): ReadonlyArray<ParsedSnippetLine> {
 }
 
 /**
- * Spine implementation. Parses `ipc.search` responses for explicit
- * `[[target]]` mentions of the requested path; full-fidelity backlinks
- * arrive when crates/haven-index::edges_from is wired through the IPC in
- * a follow-up PR.
+ * Spine implementation. Queries the IPC for documents that mention the
+ * target path as a literal substring; full-fidelity backlinks arrive
+ * when crates/haven-index::edges_from is wired through the IPC in a
+ * follow-up PR. The query here is intentionally a plain FTS5 substring
+ * (not a regex pattern) so SQLite's FTS handles it as a phrase lookup
+ * without regex escaping.
  */
 export class BacklinksPanelStub implements BacklinksPanelView {
   constructor(
@@ -42,9 +44,10 @@ export class BacklinksPanelStub implements BacklinksPanelView {
   ) {}
 
   async forPath(path: string): Promise<ReadonlyArray<BacklinkHit>> {
-    const escaped = path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const query = `\\[\\[${escaped}(\\|[^\\]]*)?\\]\\]`;
-    const response: IndexSearchResponse = await this.ipc.search({ query, limit: 64 });
+    const response: IndexSearchResponse = await this.ipc.search({
+      query: path,
+      limit: 64,
+    });
     return response.paths.flatMap((sourcePath) => {
       const snippets = toSnippetLines(sourcePath);
       return snippets.map((entry) => ({
