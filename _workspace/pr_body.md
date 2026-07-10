@@ -1,44 +1,142 @@
-## Phase 1 — Core loop on top of R0
+## Summary
 
-Re-launches Phase 1 against the R0 ADRs (`docs/adr/001`–`003`).
+R0 (restart foundation) is decision-only. This PR delivers the
+evidence-linked bundle required to plan M1 (`Safe vault open`).
 
-### Branches / lifecycle
+Follows the approved design at
+`docs/superpowers/specs/2026-07-10-haven-clean-rebuild-design.md`.
 
-- Branch: `cursor/phase-1-redux-d85e` (off `main` after PR #3 R0 merges).
-- Stack: `[P1.2] crates/okf` → `[P1.1] Scaffold TS shell + CI` → `[P1] PR evidence`.
+## Restart boundary
 
-### Acceptance gate matrix
+- `cursor/finish-phase-1-d85e` is preserved as the pre-rebuild
+  reference (commit `691e8d0`).
+- `cursor/rebuild-foundation-d85e` carries only the new R0 scaffolding.
+- The dirty worktree was inventoried before reset; no unrelated user
+  changes were absorbed.
 
-| Phase 1 item | Implementation | Acceptance test |
-|---|---|---|
-| P1.1 monorepo scaffold | `Cargo.toml`, `package.json`, `tsconfig.json`, `eslint.config.cjs`, `.github/workflows/ci.yml`, `src/src/lib/ipc.ts` typed IPC contract | `cargo fmt --check && cargo clippy -D warnings && cargo test && npm run typecheck && npm run lint -- --max-warnings 0 && npm test` (CI) |
-| P1.2 `crates/okf` | frontmatter parse/serialize, `Mode::{StrictWrite, PermissiveRead}`, reserved-filename lint, unknown-key round-trip tests | `cargo test -p okf` |
-| P1.3 `crates/haven-git` | dual signer (`Identity::signature` human / `Haven Agent (<model>)`), isolated staging, atomic replace + `SeenSet` expected-hash, off-tree fence, symlink/path confine, recovery snapshot under `.haven/snapshots/` | `cargo test -p haven-git` |
-| P1.4 `crates/haven-index` | SQLite WAL + FTS5 + edges, `INDEX_SCHEMA_VERSION=1`, content-hash short-circuit upsert, rename/delete, full rebuild after `.haven/` deletion | `cargo test -p haven-index` |
-| P1.5 typed editor shell | `EditorShell` interface + `EditorHandle` + `EditorDomain`; raw-Markdown hatch in the `EDITOR_CAPABILITIES` flag set | `npm test` |
+## What changed
 
-### Local verification
+### Repo-wide invariants
 
-- `cargo fmt --all --check` clean.
-- `node scripts/okf-lint.mjs docs/fixtures/notes-200/` `OKF lint clean`.
-- `cargo test`/`cargo build`/`cargo clippy` cannot run here (no MSVC link.exe / MinGW gcc on this Windows box) — CI on Ubuntu is the build/run gate (see `.github/workflows/ci.yml`).
+`AGENTS.md` now carries the durable numbered invariants list (§1 —
+files are the only source of truth; §2 — OKF v0.1 conformant writes
+on the desktop, permissive on read; §3 — local-model default; §4 —
+internet first-class; §5 — no inbound network ports; §6 — license
+posture with Apache-2.0 desktop app and AGPL-3.0 self-hostable relay;
+§7 — provenance sacred; §8 — relay cannot decrypt; §9 — models get
+only typed tools; §10 — offline-only edits queue and reconcile on
+reconnect). `docs/research/threat-model.md` and the ADR/spec
+cross-references now use this flat numbering.
 
-### Cross-references back to R0
+### Plan
 
-- `crates/okf` realizes the contract from `docs/adr/001-okf-adoption.md` (strict-write `okf_version`, `type`, permissive-read).
-- `crates/haven-git` realizes `docs/adr/003-git-write-policy.md` (human + `Haven Agent (<model>)` identity; isolated staging; atomic replace with expected hash; off-tree fence).
-- `crates/haven-index` satisfies the `AGENTS.md §1` files-only-source-of-truth invariant: deleting `.haven/` leaves canonical files intact and the next reconcile rebuilds.
-- `docs/research/threat-model.md` already enumerates the relevant threats (off-tree absorption; raw conflict markers; oversized binaries; etc.).
+- `PLAN.md` slimmed to the milestone map with `[tier:X]` directives
+  and acceptance blocks per task.
+- Old implementation, manifests, lockfiles, and CI removed.
 
-### Evidence file
+### Harness scaffolding
 
-Full acceptance evidence: `_workspace/10_phase1_pr_evidence.md`.
+- `docs/harness/haven/team-spec.md` — role topology, handoff
+  contract, failure policy, and R0 acceptance gates.
+- `.agents/skills/haven-r0-orchestrator/SKILL.md` — orchestrator for
+  the R0 pipeline.
+- `.agents/skills/haven-{architect,prior-art,sync,localmodel,memory,
+  research-selector,threat-model}/SKILL.md` — specialist skills.
 
-### Reviewer checklist (superpowers style)
+### ADRs (`docs/adr/`)
 
-- [ ] `crates/okf` covers OKF v0.1 strict-write + permissive-read invariants from ADR-001.
-- [ ] `crates/haven-git` integrates dual-identity, isolated staging, atomic replace, and off-tree fence from ADR-003.
-- [ ] `crates/haven-index` rebuilds from canonical files after `rm -rf .haven/`.
-- [ ] Editor contract in `src/src/lib/editor.ts` matches ADR-002's "lossless raw-Markdown hatch" requirement.
-- [ ] IPC contract in `src/src/lib/ipc.ts` is fully typed.
-- [ ] CI matrix runs fmt + clippy + tests + tsc + eslint + script-linters on PR.
+- `001-okf-adoption.md` — OKF v0.1 strict-write, permissive-read.
+- `002-editor-roundtrip.md` — CodeMirror 6 default with raw Markdown
+  escape hatch.
+- `003-git-write-policy.md` — dual-identity commits, isolated
+  staging, atomic replace, expected-hash, side-by-side conflicts.
+- `004-local-runtime-and-network-posture.md` — Ollama loopback only,
+  no silent cloud calls, no inbound ports, URL allowlist.
+- `005-sync-collaboration.md` — encrypted Git-envelope relay, native
+  Rust relay, Syncthing-style conflicts, any-sync-style spaces.
+- `006-memory-engine.md` — file-native canonical + optional
+  Hindsight/Mem0/Graphiti adapters.
+- `007-local-model-selection.md` — Qwen 3.5 4B Q4 default, Gemma E4B
+  Q4 quality alternate, embedding fallback matrix.
+- `000-r0-exit-evidence.md` — consolidates the evidence; R0 gate
+  checklist.
+
+### Specs (`docs/superpowers/specs/`)
+
+- `launch-workflows.md` — three alpha workflows (safe-existing-vault,
+  cited recall, approved MCP patch) with user-visible trust states.
+- `hardware-model-matrix.md` — floor/default/quality/headroom tiers,
+  16 GB runtime budget, honesty bar.
+- `alpha-success-metrics.md` — activation, setup, interop gates.
+- `research-selector.md` — static ResearchIntent enum, deterministic
+  policy router, Knowledge Diff classification, safety contracts.
+
+### Research (`docs/research/`)
+
+- `prior-art-register.md` — every hard-feature category with license
+  verdicts, reusable modules, and adopt/fork/adapt/reimplement
+  decisions. New §11 covers Ollama + llama.cpp + cloud providers +
+  SearXNG/Firecrawl/Crawl4AI/Playwright bakeoff.
+- `threat-model.md` — invariant-to-threat mapping, adversary
+  inventory, cross-cutting prompts-injection / secret / imported-HTML
+  defenses.
+- `knowledge-diff-fixtures.md` — fixture shape for novel,
+  corroborating, conflicting, and uncertain truth cases.
+- `longmem-eval-bakeoff.md` — companion artifact to ADR-006; numeric
+  results fill in once M6 is plan-eligible.
+
+### Orchestrator scratchpad (`_workspace/`)
+
+- `00_objective.md` — problem brief and acceptance contract.
+- `04_adrs_index.md` — cross-reference: ADR ↔ prior-art row ↔ spec ↔
+  threat-model row.
+- `09_r0_exit_evidence.md` — orchestrator's working copy of the gate
+  evidence plus status trackers.
+- `pr_body.md` — this file.
+
+## Acceptance gate
+
+R0 exit test green when:
+
+- [x] Approved design referenced from this PR.
+- [x] Every governing decision has an ADR; each ADR cites the
+      prior-art register and the relevant spec.
+- [x] `AGENTS.md` carries the durable numbered invariants list and
+      everything else cross-references them by number.
+- [x] Threat-model invariant mapping row exists for every
+      `AGENTS.md` invariant (§1 — §10).
+- [ ] Hardware matrix declares concrete benchmarks before any model
+      pull. (R0 ships the schema and tier policy only — the per-tier
+      benchmark table lives in
+      `docs/research/hardware-benchmarks.md`, which is created and filled
+      during M1. M1 is the gate that opens the first model pull.)
+- [x] Three launch workflows exist with user-visible trust states.
+- [x] Restart boundary observed; old code preserved in git history.
+
+## What's next
+
+After this lands, the next planning target is **M1 (Safe vault
+open)**. The M1 implementation plan will live under
+`docs/superpowers/plans/m1-safe-vault-open.md` and the orchestrator
+skill `haven-m1-orchestrator` (not yet added; will be added when M1
+is approved). Loading `haven-r0-orchestrator` after this lands gets
+the answer "do not use this skill once R0 is exit-passed."
+
+## Out of scope for this PR
+
+- No production feature code.
+- No CI that depends on cargo or npm yet (M1 scaffolding re-introduces
+  those).
+- No model downloads; first-run setup will benchmark before any pull.
+- No silent remote API calls; outbound connectors ship disabled.
+
+## Review checklist
+
+- [ ] Every ADR's "Acceptance evidence" links to a real test or
+      fixture path in this repo or M1 scaffolding.
+- [ ] Every specialist skill's `Required inputs` matches the team-spec
+      handoff contract.
+- [ ] Threat-model invariant mapping row exists for every
+      `AGENTS.md` invariant (§1 — §10).
+- [ ] No ghost files / context-restored duplicates remain in the
+      diff.

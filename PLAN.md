@@ -588,7 +588,7 @@ Phases 1-3 feel sticky and the P2 approved-diff workflow is trusted.**
 - [ ] `[tier:medium]` P4.1 Skill authoring: "New Skill" template, Agent Skills linter
       (mirrors `skills-ref validate`), skills browser.
       [acceptance]
-      check: run command="node scripts/skills-ref-validate.mjs skills/" expect="exit 0"
+      check: run command="node scripts/skills-ref-validate.mjs .agents/skills/" expect="exit 0"
       criteria: every authored skill passes the Agent Skills spec linter; browser renders SKILL.md metadata with progressive disclosure; templates ship with the AppImage / DMG.
       deliverable: src/components/skills/, skills/templates/, scripts/skills-ref-validate.mjs
       [/acceptance]

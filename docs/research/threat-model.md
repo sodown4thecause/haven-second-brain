@@ -14,7 +14,7 @@ path" review.
 | §2 OKF-conformant writes | hostile whitelist or unknown-key escapes | Strict-write linter; permissive read | `crates/okf` tests |
 | §3 Local-model default | silent cloud calls | URL validator + cloud preflight | `crates/haven-engine cloud_preflight.rs` |
 | §4 Internet is first-class | sync queue corruption on long offline | Async queue + reconcile on reconnect | `crates/haven-sync` reconcile tests |
-| §5 No inbound network ports | local TCP server | Loopback bind + CSP + URL gate | `crates/haven-engine loopback_only.rs` |
+| §5 No inbound network ports | local TCP server | NAMED PIPE / UNIX DOMAIN SOCKET IPC between webview and engine; no desktop TCP listener ever. Webview CSP forbids direct fetch of any `127.0.0.1` URL. Loopback TCP is a documented platform-only fallback when no IPC primitive exists; it is never the default. Outbound-only connectors go through the URL gate. | `crates/haven-engine ipc_pipe_only.rs` |
 | §6 License posture / no lock-in | proprietary file mutations | OKF strict-write; raw Markdown escape hatch | `crates/okf` permissivity tests |
 | §7 Provenance sacred | batched human+AI commits | Dual-identity commit policy | `crates/haven-git identity.rs` tests |
 | §8 Relay cannot decrypt | relay sees plaintext | Envelope encryption; rotation gates new sharing | `crates/haven-relay` two-device test |

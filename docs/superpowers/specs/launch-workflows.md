@@ -43,7 +43,8 @@ Acceptance criteria:
 - Median **time-to-first-compatible-read** under 5 minutes for a real 1k-page
   vault; never more than 30 minutes for any 10k-note fixture.
 - Zero file mutations before opt-in; verified by the
-  `crates/haven-git safe_existing_vault` integration test.
+  `crates/haven-git/tests/safe_existing_vault.rs` integration test (added
+  in M1 — see [ADR-003-git-write-policy.md §Acceptance evidence](../../adr/003-git-write-policy.md)).
 - 100% of `git status --porcelain` diffs are explained in the UI.
 
 ## Workflow B — Cited recall with retrieval

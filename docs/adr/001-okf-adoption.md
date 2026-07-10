@@ -83,8 +83,19 @@ OKF adoption is reversible if Google revises the spec, with these conditions:
 
 ## Acceptance evidence
 
-- `crates/okf` property tests round-trip unknown keys and malformed inputs.
-- `crates/okf` strict-write linter refuses documents missing `type` or with
-  duplicate reserved filenames.
-- `crates/okf` permissive-read accepts unknown `type` and optional fields.
-- A 200-note OKF fixture rebuilds from the file tree after `rm -rf .haven`.
+R0 records the evidence contract. M1 scaffolding introduces `crates/okf`
+and the strict-write linter (`scripts/okf-lint.mjs` referenced in
+`AGENTS.md`). R0 contains no crate sources; the references below describe
+the **expected** location and behavior of each acceptance test.
+
+- `crates/okf/tests/property_roundtrip.rs`: property tests round-trip
+  unknown keys, malformed inputs, and unknown `type` values without
+  exceptions.
+- `crates/okf/tests/strict_write.rs`: strict-write linter refuses documents
+  missing `type`, duplicates of `index.md`/`log.md`, and missing
+  `okf_version`.
+- `crates/okf/tests/permissive_read.rs`: permissive-read accepts unknown
+  `type`, unknown optional fields, and broken links; the test fixture set
+  mirrors `AGENTS.md §2` posture.
+- `crates/okf/tests/fixtures/`: a 200-note OKF fixture set; the test
+  rebuilds the derived `.haven/` index after `rm -rf .haven`.
