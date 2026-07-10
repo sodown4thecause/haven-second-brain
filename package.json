@@ -1,0 +1,29 @@
+{
+  "name": "haven-second-brain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "src",
+    "scripts"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit -p src/tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\"",
+    "test": "node --test --test-reporter=spec 'src/**/*.test.ts'",
+    "ci": "npm run typecheck && npm run lint -- --max-warnings 0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "@vitest/coverage-v8": "^2.1.0",
+    "eslint": "^9.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0",
+    "zod": "^3.23.0"
+  },
+  "dependencies": {
+    "ulid": "^2.3.0"
+  }
+}
