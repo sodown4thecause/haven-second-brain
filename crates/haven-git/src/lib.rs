@@ -192,7 +192,7 @@ impl VaultWriter {
         // open_or_init() creates the directory on first run; canonicalize
         // must come AFTER, otherwise init for a brand-new vault fails.
         let repo = open_or_init(vault_root)?;
-        vault_root.canonicalize().map_err(std::io::Error::from)?;
+        vault_root.canonicalize()?;
         let writer = VaultWriter {
             inner: Arc::new(WriterInner {
                 repo: Mutex::new(repo),
@@ -275,7 +275,7 @@ impl VaultWriter {
     /// from the parent commit so the new tree replaces a single path while
     /// preserving every other previously tracked blob.
     pub fn commit(&self, write: VaultWrite) -> Result<CommitReceipt, GitError> {
-        let mut repo = self.inner.repo.lock();
+        let repo = self.inner.repo.lock();
         let vault = self.inner.vault_root.canonicalize()?;
         let canonical_target = if write.path.is_absolute() {
             write.path.clone()
@@ -377,10 +377,6 @@ pub fn sha256_hex(content: &[u8]) -> String {
     h.update(content);
     let digest = h.finalize();
     format!("{digest:x}")
-}
-
-fn confin_path(root: &Path, abs: &Path) -> PathBuf {
-    abs.strip_prefix(root).unwrap_or(abs).to_path_buf()
 }
 
 #[derive(Debug, Default, Clone)]
