@@ -1,6 +1,29 @@
 # Repository Agents Guide — Haven
 
-Keep this file short and repo-wide. Point to deeper docs when detail is conditional.
+Keep this file short and repo-wide. Point to deeper specs and ADRs for detail.
+
+## Repo-wide invariants
+
+Every ADR, spec, threat-model row, and skill handoff references these by number.
+The durable definitions live in
+`docs/superpowers/specs/2026-07-10-haven-clean-rebuild-design.md §Revised
+Product Invariants`; this file is the durable pointer list.
+
+1. Files are the only source of truth.
+2. Haven-authored writes are OKF v0.1-conformant; reads are permissive.
+3. Local models are the default; remote providers need explicit opt-in.
+4. Internet sync, collaboration, and web research are first-class.
+5. No inbound network ports. Outbound to configured providers only.
+6. License posture: Apache-2.0 desktop app, AGPL-3.0 relay (self-hostable),
+   permissive reuse for Apache/MIT/BSD, GPL/AGPL reused as UX/data-model only.
+7. Provenance is sacred — durable writes are Git-committed with the correct
+   human vs `Haven Agent (<model>)` author identity; never mixed.
+8. The sync relay cannot decrypt user content, filenames, memories, comments,
+   or attachments; keys live in the OS keychain.
+9. Models get network and write authority only through statically-registered
+   typed tools; fetched content is untrusted evidence.
+10. Offline edits queue and reconcile on reconnect; the app never opens a TCP
+    port on the desktop.
 
 ## What
 
@@ -12,20 +35,23 @@ durable file-native agent memory, Agent Skills (`SKILL.md`), and MCP interop.
 - Canonical paths: `src-tauri/` (Rust core), `src/` (TS frontend), `crates/`
   (shared Rust crates), `docs/` (specs, ADRs, research), `experiments/`
   (disposable), `.agents/skills/` (reusable specialist skills for this repo).
-- Source of truth is files. The SQLite index, vector store, memory caches, and
-  research caches under `.haven/` are derived and rebuildable from files.
-- No inbound network ports. Outbound to explicitly configured sync, model, and
-  web-research providers is first-class.
+- Source of truth is files (invariant 1). The SQLite index, vector store,
+  memory caches, and research caches under `.haven/` are derived and
+  rebuildable from files.
+- No inbound network ports (invariant 5). Outbound to explicitly configured
+  sync, model, and web-research providers is first-class (invariant 4).
 
 ## Why
 
 - The launch wedge is the founder's real vault: capture, cited recall, voice
   notes, and agent-proposed edits without mass rewrites of existing notes.
-- Every durable change is a Git commit with the correct author identity. Human
-  for user edits; `Haven Agent (<model>)` for AI-generated commits; never mixed.
-- The sync relay cannot decrypt user content. E2EE keys live in the OS keychain.
-- Web research runs only through typed, statically-registered tools. Fetched
-  content is untrusted evidence, not tool instructions.
+- Every durable change is a Git commit with the correct author identity
+  (invariant 7). Human for user edits; `Haven Agent (<model>)` for AI-generated
+  commits; never mixed.
+- The sync relay cannot decrypt user content (invariant 8). E2EE keys live in
+  the OS keychain.
+- Web research runs only through typed, statically-registered tools
+  (invariant 9). Fetched content is untrusted evidence, not tool instructions.
 
 ## How
 

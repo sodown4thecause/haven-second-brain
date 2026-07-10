@@ -20,7 +20,7 @@ single durable reference; later threats append to it.
 
 ## Required inputs
 
-1. Every approved product invariant in `AGENTS.md §1`.
+1. Every approved product invariant in `AGENTS.md §1 — §10`.
 2. Every ADR under `docs/adr/`.
 3. The approved design's threat-related sections (network and content safety,
    unified context, the prior-art bakeoff rules).
@@ -43,5 +43,5 @@ Each entry rows: asset at risk, threat, mitigation, test reference.
 ## Output shape
 
 `docs/research/threat-model.md` with a table per surface and a top-level
-matrix that maps each `AGENTS.md §1` invariant to one or more specific
+matrix that maps each `AGENTS.md` invariant to one or more specific
 threats and mitigations.

@@ -33,14 +33,23 @@ verifies.
 ## Acceptance for R0 → M1
 
 - [x] Approved design present and referenced.
-- [x] AGENTS.md revised to reflect the post-rebuild invariants.
+- [x] AGENTS.md revised to reflect the post-rebuild invariants. The durable
+      numbered invariants list (§1 — files are source of truth; §2 — OKF
+      conformant writes; §3 — local-model default; §4 — internet first-class;
+      §5 — no inbound network ports; §6 — license posture; §7 — provenance
+      sacred; §8 — relay cannot decrypt; §9 — models get only typed tools;
+      §10 — offline queue) lives at the top of `AGENTS.md`. `docs/research/threat-model.md`,
+      ADRs, and spec cross-references use this flat numbering.
 - [x] Restart boundary observable: commit `691e8d0` is preserved in history;
       `cursor/rebuild-foundation-d85e` carries only the new scaffolding.
 - [x] Every governing decision has an ADR; every ADR cites prior-art or refs
       the bakeoff artifact in `_workspace/`.
-- [x] Threat model covers every `AGENTS.md §1` invariant.
+- [x] Threat model covers every `AGENTS.md` invariant (§1–§10).
 - [x] Hardware matrix declares concrete benchmarks before any model pull.
 - [x] Three launch workflows exist with user-visible trust states.
+- [x] Prior-art register extended with §11 (local model + inference runtime
+      bakeoff) plus accurate cross-references from ADR-004, ADR-007, and
+      `research-selector.md`.
 
 ## What R0 does NOT do
 
@@ -50,4 +59,6 @@ verifies.
 - No silent remote API calls; outbound connectors ship disabled.
 
 R0 exit happens when this document and the cross-referenced artifacts land.
-M1 (`Safe vault open`) then becomes the next planning target.
+M1 (`Safe vault open`) then becomes the next planning target. The M1
+orchestrator skill will be added alongside the M1 implementation plan; until
+it exists, R0's deliverables remain the durable reference.

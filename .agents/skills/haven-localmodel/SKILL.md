@@ -21,8 +21,8 @@ Do not use to design or implement model code. R0 is decision-only.
 
 ## Required inputs
 
-1. `AGENTS.md §1.3` (local model default), §1.4 (internet is first-class), §1.5
-   (no inbound network ports), §1.9 (models get only typed tools).
+1. `AGENTS.md §3` (local model default), §4 (internet is first-class), §5
+   (no inbound network ports), §9 (models get only typed tools).
 2. `docs/superpowers/specs/hardware-model-matrix.md`.
 3. `PLAN.md` Recommended Local LLM Stack for tier guidance.
 4. `docs/research/prior-art-register.md`.

@@ -14,7 +14,7 @@ Do not use to design or implement web-research tooling. R0 is decision-only.
 
 ## Required inputs
 
-1. `AGENTS.md §1.9` (models get only typed tools).
+1. `AGENTS.md §9` (models get only typed tools).
 2. The local-model runtime ADR.
 3. `docs/research/threat-model.md`.
 4. Approved design §Static research-tool routing and §Generative Citation

@@ -4,7 +4,8 @@ Status: accepted (R0)
 Date: 2026-07-10
 Driver: `haven-architect`
 Reviewer: orchestrator review-board
-Linked design: `PLAN.md P0.2` and `AGENTS.md §5`
+Linked design: `PLAN.md P0.2` and `AGENTS.md §1 — §10` invariants
+(durable pointer list at the top of `AGENTS.md`).
 
 ## Context
 

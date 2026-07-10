@@ -4,7 +4,7 @@ Status: accepted (R0)
 Date: 2026-07-10
 Driver: `haven-localmodel`
 Reviewer: `haven-architect`
-Linked design: `PLAN.md Recommended local LLM stack` and `AGENTS.md §1.3, §7`
+Linked design: `PLAN.md Recommended local LLM stack` and `AGENTS.md §3, §7`
 
 ## Context
 
@@ -77,7 +77,9 @@ retrieval-only answers available.
 
 ## Prior-art cross-reference
 
-- `docs/research/prior-art-register.md §6, §9`.
+- `docs/research/prior-art-register.md §11` (local model + inference runtime,
+  including Ollama, llama.cpp, cloud providers, SearXNG/Firecrawl/Crawl4AI/
+  Playwright bakeoff) and `§6` (sqlite-vec indexing for embedding rows).
 - `docs/superpowers/specs/hardware-model-matrix.md` carries the per-tier
   measurement table.
 

@@ -4,7 +4,7 @@ Status: accepted (R0)
 Date: 2026-07-10
 Driver: `haven-architect`
 Reviewer: orchestrator review-board
-Linked design: `PLAN.md P0.3` and `AGENTS.md §1.7`
+Linked design: `PLAN.md P0.3` and `AGENTS.md §7`
 
 ## Context
 

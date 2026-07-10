@@ -5,7 +5,7 @@ in R0. Each row cites the licensed repository, the verdict relative to
 Haven's product invariants, a documented set of reusable modules, and an
 explicit adopt / fork / adapt / reimplement call with linked evidence.
 
-License policy (`AGENTS.md §1.6`):
+License policy (`AGENTS.md §6`):
 
 - Desktop app: **Apache-2.0**.
 - Sync relay: **AGPL-3.0** (so users can self-host and copyleft improvements).
@@ -150,3 +150,27 @@ twice.
 | Does a candidate allow second canonical state outside the file tree? | Reject; derived indexes, caches, and external engines must be rebuildable from the canonical files. |
 
 Anything that violates the above triggers an R0 re-review.
+
+## 11. Local model + inference runtime (LLM, embedding, transcription)
+
+See `docs/adr/004-local-runtime-and-network-posture.md` for the loopback +
+network posture and `docs/adr/007-local-model-selection.md` for the per-tier
+chatter/embedding matrix. This row covers the runtime side of the same
+decision: subprocesses, sidecars, and binding contracts.
+
+| Project | Repo | License | Reusable modules | Decision | Evidence |
+| --- | --- | --- | --- | --- | --- |
+| Ollama | [ollama/ollama](https://github.com/ollama/ollama) | MIT | Loopback REST subprocesses, model manifest pull, telemetry opt-out | Adopt (default in v1) | [ADR-004](../adr/004-local-runtime-and-network-posture.md) |
+| llama.cpp | [ggerganov/llama.cpp](https://github.com/ggerganov/llama.cpp) | MIT | Self-contained inference; GGUF/GGML formats | Defer custom sidecar to post-v1; revisit when Ollama misses a needed model | [ADR-004](../adr/004-local-runtime-and-network-posture.md) |
+| OpenAI / Anthropic / Gemini HTTP clients | vendor SDKs | proprietary | Optional cloud providers | Adapt (explicit opt-in, per-call disclosure) | [ADR-004](../adr/004-local-runtime-and-network-posture.md) |
+| AI SDK | [vercel/ai](https://github.com/vercel/ai) | Apache-2.0 | Provider-agnostic TS tool-calling surface | Adapt for cloud provider selection (per `docs/superpowers/specs/research-selector.md`) | [ADR-004](../adr/004-local-runtime-and-network-posture.md) |
+| SearXNG | [searxng/searxng](https://github.com/searxng/searxng) | AGPL-3.0 | Self-hosted meta-search | UX + provider policy only (data-model only; no code embedding because desktop is Apache-2.0) | research-selector.md |
+| Firecrawl | [mendable/firecrawl](https://github.com/mendable/firecrawl) | AGPL-3.0 (hosted SaaS) | Hosted scrape/crawl/extract | Optional provider via explicit opt-in; no embedded dependency | research-selector.md |
+| Crawl4AI | [unclecode/crawl4ai](https://github.com/unclecode/crawl4ai) | Apache-2.0 | Self-hosted extract + crawl | Adapt as optional self-hosted provider | research-selector.md |
+| Playwright (browser) | [microsoft/playwright](https://github.com/microsoft/playwright) | Apache-2.0 | Sandboxed browser automation | Adapt (interactive pages only; vault/keychain/sync access disabled) | threat-model.md §Adversary — Poisoned scraper target |
+
+Hard requirements referenced from `AGENTS.md §3 / §5 / §9`: bind loopback
+only, no inbound port, static tool registration, fetched content cannot
+trigger privileged tools. R0 record survives even when an Ollama release
+rebases; the digest + chat template + license + quantization pin is the
+release contract.

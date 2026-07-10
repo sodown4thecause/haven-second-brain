@@ -77,4 +77,4 @@ reviewer writes a `## Review` block before the next stage begins.
   were considered, what evidence supports the choice"?
 - Does each ADR cite the prior-art register and the bakeoff it depends on?
 - Does each spec cite the ADR that sets its boundary?
-- Does the threat model cite every product invariant from `AGENTS.md §1`?
+- Does the threat model cite every product invariant from `AGENTS.md §1 — §10`?

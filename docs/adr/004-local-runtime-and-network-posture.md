@@ -4,7 +4,7 @@ Status: accepted (R0)
 Date: 2026-07-10
 Driver: `haven-architect`
 Reviewer: orchestrator review-board
-Linked design: `PLAN.md P0.6` and `AGENTS.md §1.3, §1.4, §1.5, §1.9`
+Linked design: `PLAN.md P0.6` and `AGENTS.md §3, §4, §5, §9`
 
 ## Context
 
@@ -57,7 +57,7 @@ user knows whether inference is available.
   out of v1 scope; revisit when Ollama support misses a model we need.
 - **Mandatory model download**: rejected; search/editor/MCP must work
   before any model is installed.
-- **Open engine binding**: rejected; violates `AGENTS.md §1.5`.
+- **Open engine binding**: rejected; violates `AGENTS.md §5`.
 
 ## Consequences
 
@@ -75,7 +75,9 @@ user knows whether inference is available.
 
 ## Prior-art cross-reference
 
-- `docs/research/prior-art-register.md §6, §8, §9`.
+- `docs/research/prior-art-register.md §11` (local model + inference
+  runtime bakeoff: Ollama, llama.cpp, cloud providers, SearXNG/Firecrawl/
+  Crawl4AI/Playwright) and §6 (sqlite-vec/FTS5 for embedding rows).
 - Ollama's published API surface; Qwen 3.5 chat template + Qwen3-Embedding
   dimensions.
 

@@ -19,7 +19,7 @@ Do not use to design or implement memory code. R0 is decision-only.
 
 ## Required inputs
 
-1. `AGENTS.md §1.1, §1.2, §1.7, §1.8, §1.9` (file truth, OKF, provenance,
+1. `AGENTS.md §1, §2, §7, §8, §9` (file truth, OKF, provenance,
    relay cannot decrypt, models get only typed tools).
 2. `docs/research/prior-art-register.md`.
 3. Approved design §Unified Context and Durable Memory.

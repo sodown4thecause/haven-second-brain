@@ -20,7 +20,7 @@ reversible or has a documented exit.
 ## Required inputs
 
 1. The draft ADR under `_workspace/`.
-2. `AGENTS.md §1` invariants.
+2. The `AGENTS.md §1 — §10` invariants.
 3. `docs/research/prior-art-register.md`.
 4. `docs/research/threat-model.md`.
 5. Existing ADRs (`docs/adr/`).

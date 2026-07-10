@@ -31,7 +31,7 @@ document is why.
 
 Several reasons stack:
 
-1. **File-truth invariant (`AGENTS.md §1.1`)** — only a file-native path
+1. **File-truth invariant (`AGENTS.md §1`)** — only a file-native path
    keeps the canonical state on disk.
 2. **Rebuild-from-files** — the file set is the load-bearing canonical
    form; any swap-in adapter is disposable.

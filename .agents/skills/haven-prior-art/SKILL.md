@@ -18,7 +18,7 @@ register that ADRs cite.
 
 1. The hard-feature list in `docs/superpowers/specs/2026-07-10-haven-clean-rebuild-design.md`.
 2. The pre-approved prior-art URL block in `PLAN.md`.
-3. The license policy in `AGENTS.md §1.6` (Apache-2.0 app + AGPL-3.0 server;
+3. The license policy in `AGENTS.md §6` (Apache-2.0 app + AGPL-3.0 server;
    revisit per code reuse).
 
 ## Output shape

@@ -37,7 +37,8 @@ Adopt **file-native canonical memories** as the canonical path. The flagship
 implementation is `crates/haven-memory`:
 
 - Candidate observations live in `memory/observations/<date>-<slug>.md` with
-  the schema in `AGENTS.md §7` (type, subject, scope, timestamp, confidence,
+  the schema in `docs/superpowers/specs/2026-07-10-haven-clean-rebuild-design.md
+  §Canonical memory` (type, subject, scope, timestamp, confidence,
   sources, supersedes, sensitivity, status).
 - A SQLite-derived index is built from approved observations only.
 - External memory engines are wrapped as **optional adapters**, never as the

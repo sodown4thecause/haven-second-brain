@@ -1,25 +1,25 @@
 # Haven Unified Threat Model (R0)
 
-This document cross-references every `AGENTS.md §1` invariant to specific
-threats, mitigations, and acceptance evidence. R0 records the model; later
-phases fill in the implementation tests. The model is the durable
-reference for any future "add this remote service or new ingest path"
-review.
+This document cross-references every `AGENTS.md` invariant (§1 — §10) to
+specific threats, mitigations, and acceptance evidence. R0 records the
+model; later phases fill in the implementation tests. The model is the
+durable reference for any future "add this remote service or new ingest
+path" review.
 
 ## Invariant mapping
 
 | AGENTS.md invariant | Threat class | Mitigation | Acceptance |
 | --- | --- | --- | --- |
-| §1.1 Files are the only source of truth | "second source of truth" introduced silently | Bakeoffs reject DBs/services that don't rebuild from files | Per ADR row cites this map |
-| §1.2 OKF-conformant writes | hostile whitelist or unknown-key escapes | Strict-write linter; permissive read | `crates/okf` tests |
-| §1.3 Local-model default | silent cloud calls | URL validator + cloud preflight | `crates/haven-engine cloud_preflight.rs` |
-| §1.4 Internet is first-class | sync queue corruption on long offline | Async queue + reconcile on reconnect | `crates/haven-sync` reconcile tests |
-| §1.5 No inbound network ports | local TCP server | Loopback bind + CSP + URL gate | `crates/haven-engine loopback_only.rs` |
-| §1.6 No lock-in | proprietary file mutations | OKF strict-write; raw Markdown escape hatch | `crates/okf` permissivity tests |
-| §1.7 Provenance sacred | batched human+AI commits | Dual-identity commit policy | `crates/haven-git identity.rs` tests |
-| §1.8 Relay cannot decrypt | relay sees plaintext | Envelope encryption; rotation gates new sharing | `crates/haven-relay` two-device test |
-| §1.9 Models get only typed tools | fetched content invokes tools | Static tool registry; selector cannot call directly | `crates/haven-research router.rs` tests |
-| §1.10 Privacy by architecture | secret leakage | OS keychain; logs redacted; telemetry opt-in | CI redaction tests |
+| §1 Files are the only source of truth | "second source of truth" introduced silently | Bakeoffs reject DBs/services that don't rebuild from files | Per ADR row cites this map |
+| §2 OKF-conformant writes | hostile whitelist or unknown-key escapes | Strict-write linter; permissive read | `crates/okf` tests |
+| §3 Local-model default | silent cloud calls | URL validator + cloud preflight | `crates/haven-engine cloud_preflight.rs` |
+| §4 Internet is first-class | sync queue corruption on long offline | Async queue + reconcile on reconnect | `crates/haven-sync` reconcile tests |
+| §5 No inbound network ports | local TCP server | Loopback bind + CSP + URL gate | `crates/haven-engine loopback_only.rs` |
+| §6 License posture / no lock-in | proprietary file mutations | OKF strict-write; raw Markdown escape hatch | `crates/okf` permissivity tests |
+| §7 Provenance sacred | batched human+AI commits | Dual-identity commit policy | `crates/haven-git identity.rs` tests |
+| §8 Relay cannot decrypt | relay sees plaintext | Envelope encryption; rotation gates new sharing | `crates/haven-relay` two-device test |
+| §9 Models get only typed tools | fetched content invokes tools | Static tool registry; selector cannot call directly | `crates/haven-research router.rs` tests |
+| §10 Offline queue + no inbound port | secret leakage | OS keychain; logs redacted; telemetry opt-in | CI redaction tests |
 
 ## Adversary inventory
 

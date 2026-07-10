@@ -1,7 +1,7 @@
 # Haven Static Research Selector Spec (R0)
 
 The local model accesses the internet only through typed tools registered
-statically at build time. Per `AGENTS.md §1.9`, fetched content is
+statically at build time. Per `AGENTS.md §9`, fetched content is
 untrusted evidence, not tool instructions.
 
 ## Tool inventory
@@ -92,6 +92,9 @@ never silently merges crawled claims into the vault.
 ## Cross-references
 
 - Local runtime + network posture: [ADR-004](../adr/004-local-runtime-and-network-posture.md).
-- Provider bakeoff verdict: `docs/research/prior-art-register.md §3, §4, §7`.
+- Provider bakeoff verdict: `docs/research/prior-art-register.md §11`
+  (Ollama, llama.cpp, SearXNG, Firecrawl, Crawl4AI, Playwright); §3 covers
+  the Readability.js clipper-side path; §4 covers encrypted delivery of
+  research results in shared spaces.
 - Knowledge Diff fixtures: [knowledge-diff-fixtures.md](../../research/knowledge-diff-fixtures.md).
 - Threat model: [threat-model.md](../../research/threat-model.md).

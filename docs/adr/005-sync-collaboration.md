@@ -22,10 +22,10 @@ We need multi-device sync and asynchronous collaboration for personal vaults
 
 Product invariants:
 
-- Files are the only source of truth (`AGENTS.md §1.1`).
+- Files are the only source of truth (`AGENTS.md §1`).
 - Relay cannot decrypt user content, filenames, memories, comments, or
-  attachments (`AGENTS.md §1.8`).
-- No inbound network ports (`AGENTS.md §1.5`).
+  attachments (`AGENTS.md §8`).
+- No inbound network ports (`AGENTS.md §5`).
 
 ## Decision
 
@@ -69,7 +69,7 @@ borrow the conflict-side-by-side semantics only.
 ## Key model
 
 - Each device has an identity key stored in the OS keychain (per
-  `AGENTS.md §10`).
+  `AGENTS.md §8`).
 - Each shared space has a content-encryption key.
 - Invitations grant the space key to authorized device identities.
 - Revocation rotates future keys. **Failed rotation blocks new sharing
