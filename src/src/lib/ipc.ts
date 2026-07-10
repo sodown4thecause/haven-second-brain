@@ -4,7 +4,7 @@
 // thread to atomically commit, lint, or update the index. Every method has a
 // request/response type pair so TypeScript catches missing-field mistakes.
 
-import type { PathLike } from 'node:fs';
+import type {} from 'node:fs';
 
 export type AuthorKind = 'human' | 'agent';
 
@@ -51,8 +51,4 @@ export interface VaultIpc {
   write(req: VaultWriteRequest): Promise<VaultWriteResponse>;
   lint(req: LintRequest): Promise<LintResponse>;
   search(req: IndexSearchRequest): Promise<IndexSearchResponse>;
-}
-
-export interface FileTouchTarget extends PathLike {
-  readonly touch?: never;
 }

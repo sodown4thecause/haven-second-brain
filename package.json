@@ -4,14 +4,14 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "src",
+    "src/src",
     "scripts"
   ],
   "scripts": {
-    "typecheck": "tsc --noEmit -p src/tsconfig.json",
-    "lint": "eslint \"src/**/*.ts\"",
-    "test": "node --test --test-reporter=spec 'src/**/*.test.ts'",
-    "ci": "npm run typecheck && npm run lint -- --max-warnings 0"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint \"src/src/**/*.ts\"",
+    "test": "vitest run",
+    "ci": "npm run typecheck && npm run lint -- --max-warnings 0 && npm test"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
