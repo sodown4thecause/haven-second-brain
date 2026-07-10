@@ -34,6 +34,7 @@ pub struct IndexedFile {
 #[derive(Clone)]
 pub struct Index {
     inner: Arc<Mutex<Connection>>,
+    #[allow(dead_code)]
     root: PathBuf,
 }
 
@@ -108,7 +109,7 @@ impl Index {
     /// Idempotent upsert. Calls with the same content hash short-circuit to
     /// avoid rewriting the FTS row.
     pub fn upsert(&self, file: &IndexedFile) -> Result<(), IndexError> {
-        let mut conn = self.inner.lock();
+        let conn = self.inner.lock();
         let existing: Option<String> = conn
             .query_row(
                 "SELECT content_hash FROM files WHERE path = ?1",
@@ -140,7 +141,7 @@ impl Index {
 
     pub fn delete(&self, path: &Path) -> Result<(), IndexError> {
         let key = path.display().to_string();
-        let mut conn = self.inner.lock();
+        let conn = self.inner.lock();
         conn.execute("DELETE FROM fts WHERE path = ?1", params![&key])?;
         conn.execute("DELETE FROM files WHERE path = ?1", params![&key])?;
         Ok(())
@@ -149,7 +150,7 @@ impl Index {
     pub fn rename(&self, old: &Path, new: &Path) -> Result<(), IndexError> {
         let old_key = old.display().to_string();
         let new_key = new.display().to_string();
-        let mut conn = self.inner.lock();
+        let conn = self.inner.lock();
         // FTS5 UPDATE statement is rowid-keyed; do delete + insert.
         let body: Option<String> = conn
             .query_row(
@@ -185,7 +186,7 @@ impl Index {
     }
 
     pub fn add_edge(&self, src: &Path, dst: &Path, kind: &str) -> Result<(), IndexError> {
-        let mut conn = self.inner.lock();
+        let conn = self.inner.lock();
         conn.execute(
             "INSERT OR REPLACE INTO edges(src, dst, kind) VALUES(?1, ?2, ?3)",
             params![src.display().to_string(), dst.display().to_string(), kind,],
@@ -194,7 +195,7 @@ impl Index {
     }
 
     pub fn edges_from(&self, src: &Path) -> Result<Vec<(PathBuf, String)>, IndexError> {
-        let mut conn = self.inner.lock();
+        let conn = self.inner.lock();
         let mut stmt = conn.prepare("SELECT dst, kind FROM edges WHERE src = ?1")?;
         let rows = stmt.query_map(params![src.display().to_string()], |row| {
             let dst: String = row.get(0)?;
