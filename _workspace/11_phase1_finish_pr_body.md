@@ -29,7 +29,7 @@ choices.
 | Item | Implementation | Acceptance command | Evidence |
 |---|---|---|---|
 | P1.5 editor shell completion (decision only) | `ADR-008` | decision captured; Tauri code deferred | `docs/adr/008-editor-shell-completion.md` |
-| P1.6 PKM-UX surface (file tree, backlinks, search, daily note, wikilink autocomplete) | `ADR-009` + stubs under `src/src/components/editor/` | `npm test` green (10 cases) | `src/src/tests/editor-surface.test.ts` |
+| P1.6 PKM-UX surface (file tree, backlinks, search, daily note, wikilink autocomplete) | `ADR-009` + stubs under `src/src/components/editor/` | `npm test` green (10 cases) | `src/src/tests/editor-surface.test.ts` (plus the post-PR-prep fixup that swaps the regex query for a literal FTS5 substring) |
 | P1.7 Safe existing-vault mode | `ADR-009` daily-note policy + `ADR-010` view policy + spec + Rust skeleton + integration test | `cargo test -p haven-git --test safe_existing_vault` (CI) | `crates/haven-git/tests/safe_existing_vault.rs` + `docs/fixtures/obsidian-readonly/` |
 | P1.8 Bases-lite property views (derived view, delete-leaves-vault-intact invariant) | `ADR-010` + stubs + vitest | `npm test -- --testPathPattern bases-lite` green (6 cases including round-trip-deletion) | `src/src/tests/bases-lite.test.ts` |
 
