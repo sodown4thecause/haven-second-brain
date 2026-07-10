@@ -55,9 +55,18 @@ impl Index {
     }
 
     fn migrate(conn: &Connection) -> Result<(), IndexError> {
+        // The `meta` table must exist BEFORE we query it; otherwise the
+        // first-time open fails with `no such table: meta`.
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS meta(
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )",
+            [],
+        )?;
         let stored: Option<i32> = conn
             .query_row(
-                "SELECT version FROM meta WHERE key = 'schema_version'",
+                "SELECT value FROM meta WHERE key = 'schema_version'",
                 [],
                 |row| row.get(0),
             )
@@ -70,13 +79,6 @@ impl Index {
                 });
             }
         } else {
-            conn.execute(
-                "CREATE TABLE IF NOT EXISTS meta(
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL
-                )",
-                [],
-            )?;
             conn.execute(
                 "INSERT OR REPLACE INTO meta(key, value) VALUES('schema_version', ?1)",
                 params![INDEX_SCHEMA_VERSION.to_string()],
@@ -109,67 +111,94 @@ impl Index {
     /// Idempotent upsert. Calls with the same content hash short-circuit to
     /// avoid rewriting the FTS row.
     pub fn upsert(&self, file: &IndexedFile) -> Result<(), IndexError> {
+        let key = file.path.to_string_lossy().into_owned();
         let conn = self.inner.lock();
         let existing: Option<String> = conn
             .query_row(
                 "SELECT content_hash FROM files WHERE path = ?1",
-                params![file.path.display().to_string()],
+                params![&key],
                 |row| row.get(0),
             )
             .optional()?;
         if existing.as_deref() == Some(file.content_hash.as_str()) {
             return Ok(());
         }
-        conn.execute(
-            "INSERT OR REPLACE INTO files(path, content_hash, mtime) VALUES(?1, ?2, ?3)",
-            params![
-                file.path.display().to_string(),
-                file.content_hash,
-                chrono::Utc::now().timestamp(),
-            ],
-        )?;
-        conn.execute(
-            "DELETE FROM fts WHERE path = ?1",
-            params![file.path.display().to_string()],
-        )?;
-        conn.execute(
-            "INSERT INTO fts(path, body) VALUES(?1, ?2)",
-            params![file.path.display().to_string(), file.body],
-        )?;
+        // Wrap the files + fts writes in a transaction so a partial failure
+        // cannot leave the index looking like the new file but matching no
+        // body, or vice versa.
+        conn.execute_batch("BEGIN")?;
+        if let Err(e) = (|| -> Result<(), rusqlite::Error> {
+            conn.execute(
+                "INSERT OR REPLACE INTO files(path, content_hash, mtime) VALUES(?1, ?2, ?3)",
+                params![&key, &file.content_hash, chrono::Utc::now().timestamp()],
+            )?;
+            conn.execute("DELETE FROM fts WHERE path = ?1", params![&key])?;
+            conn.execute(
+                "INSERT INTO fts(path, body) VALUES(?1, ?2)",
+                params![&key, &file.body],
+            )?;
+            Ok(())
+        })() {
+            let _ = conn.execute_batch("ROLLBACK");
+            return Err(e.into());
+        }
+        conn.execute_batch("COMMIT")?;
         Ok(())
     }
 
     pub fn delete(&self, path: &Path) -> Result<(), IndexError> {
-        let key = path.display().to_string();
+        let key = path.to_string_lossy().into_owned();
         let conn = self.inner.lock();
+        // Drop any edges that reference the deleted path so
+        // `edges_from()` never returns dangling references.
+        conn.execute("DELETE FROM edges WHERE src = ?1 OR dst = ?1", params![&key])?;
         conn.execute("DELETE FROM fts WHERE path = ?1", params![&key])?;
         conn.execute("DELETE FROM files WHERE path = ?1", params![&key])?;
         Ok(())
     }
 
     pub fn rename(&self, old: &Path, new: &Path) -> Result<(), IndexError> {
-        let old_key = old.display().to_string();
-        let new_key = new.display().to_string();
+        let old_key = old.to_string_lossy().into_owned();
+        let new_key = new.to_string_lossy().into_owned();
         let conn = self.inner.lock();
-        // FTS5 UPDATE statement is rowid-keyed; do delete + insert.
-        let body: Option<String> = conn
-            .query_row(
-                "SELECT body FROM fts WHERE path = ?1",
-                params![&old_key],
-                |row| row.get(0),
-            )
-            .optional()?;
-        conn.execute("DELETE FROM fts WHERE path = ?1", params![&old_key])?;
-        if let Some(body) = body {
+        // Wrap the fts + files rewrite in a transaction so a primary-key
+        // conflict cannot leave the tables pointing at different paths.
+        conn.execute_batch("BEGIN")?;
+        if let Err(e) = (|| -> Result<(), rusqlite::Error> {
+            let body: Option<String> = conn
+                .query_row(
+                    "SELECT body FROM fts WHERE path = ?1",
+                    params![&old_key],
+                    |row| row.get(0),
+                )
+                .optional()?;
+            conn.execute("DELETE FROM fts WHERE path = ?1", params![&old_key])?;
+            if let Some(body) = body {
+                conn.execute(
+                    "INSERT INTO fts(path, body) VALUES(?1, ?2)",
+                    params![&new_key, body],
+                )?;
+            }
             conn.execute(
-                "INSERT INTO fts(path, body) VALUES(?1, ?2)",
-                params![&new_key, body],
+                "UPDATE files SET path = ?1 WHERE path = ?2",
+                params![&new_key, &old_key],
             )?;
+            // Refresh edges that referenced the old path so the link graph
+            // does not point at the pre-rename location.
+            conn.execute(
+                "UPDATE edges SET src = ?1 WHERE src = ?2",
+                params![&new_key, &old_key],
+            )?;
+            conn.execute(
+                "UPDATE edges SET dst = ?1 WHERE dst = ?2",
+                params![&new_key, &old_key],
+            )?;
+            Ok(())
+        })() {
+            let _ = conn.execute_batch("ROLLBACK");
+            return Err(e.into());
         }
-        conn.execute(
-            "UPDATE files SET path = ?1 WHERE path = ?2",
-            params![&new_key, &old_key],
-        )?;
+        conn.execute_batch("COMMIT")?;
         Ok(())
     }
 
@@ -189,7 +218,11 @@ impl Index {
         let conn = self.inner.lock();
         conn.execute(
             "INSERT OR REPLACE INTO edges(src, dst, kind) VALUES(?1, ?2, ?3)",
-            params![src.display().to_string(), dst.display().to_string(), kind,],
+            params![
+                src.to_string_lossy().into_owned(),
+                dst.to_string_lossy().into_owned(),
+                kind,
+            ],
         )?;
         Ok(())
     }
@@ -197,7 +230,7 @@ impl Index {
     pub fn edges_from(&self, src: &Path) -> Result<Vec<(PathBuf, String)>, IndexError> {
         let conn = self.inner.lock();
         let mut stmt = conn.prepare("SELECT dst, kind FROM edges WHERE src = ?1")?;
-        let rows = stmt.query_map(params![src.display().to_string()], |row| {
+        let rows = stmt.query_map(params![src.to_string_lossy().into_owned()], |row| {
             let dst: String = row.get(0)?;
             let kind: String = row.get(1)?;
             Ok((dst, kind))
@@ -210,11 +243,30 @@ impl Index {
         Ok(out)
     }
 
-    /// After `rm -rf .haven/`, `open()` re-runs migration + rebuild.
+    /// After `rm -rf .haven/`, `open()` re-runs migration + rebuild. Edges
+    /// are intentionally NOT rebuilt: callers must re-derive and re-insert
+    /// edges after a rebuild, otherwise the link graph decays silently.
     pub fn rebuild_from(root: &Path, files: &[IndexedFile]) -> Result<Self, IndexError> {
         let index = Self::open(root)?;
         for f in files {
             index.upsert(f)?;
+        }
+        Ok(index)
+    }
+
+    /// Rebuilder variant that also restores edges (for callers that have
+    /// the link graph available after a `rm -rf .haven/`).
+    pub fn rebuild_from_with_edges(
+        root: &Path,
+        files: &[IndexedFile],
+        edges: &[(PathBuf, PathBuf, String)],
+    ) -> Result<Self, IndexError> {
+        let index = Self::open(root)?;
+        for f in files {
+            index.upsert(f)?;
+        }
+        for (src, dst, kind) in edges {
+            index.add_edge(src, dst, kind)?;
         }
         Ok(index)
     }
@@ -282,6 +334,45 @@ mod tests {
     }
 
     #[test]
+    fn delete_drops_edges_referencing_path() {
+        let tmp = TempDir::new().unwrap();
+        let a = write(&tmp, "notes/a.md", "alpha");
+        let b = write(&tmp, "notes/b.md", "beta");
+        let index = Index::open(tmp.path()).unwrap();
+        index.add_edge(&a, &b, "wikilink").unwrap();
+        index.delete(&a).unwrap();
+        let edges = index.edges_from(&a).unwrap();
+        assert!(edges.is_empty(), "edges pointing at deleted path must be purged");
+        let edges = index.edges_from(&b).unwrap();
+        assert!(
+            edges.is_empty(),
+            "edges whose `dst` was deleted must also be purged"
+        );
+    }
+
+    #[test]
+    fn rename_refreshes_edges_and_index() {
+        let tmp = TempDir::new().unwrap();
+        let old = write(&tmp, "notes/a.md", "alpha");
+        let b = write(&tmp, "notes/b.md", "beta");
+        let index = Index::open(tmp.path()).unwrap();
+        index
+            .upsert(&IndexedFile {
+                path: old.clone(),
+                body: "alpha".into(),
+                content_hash: "h1".into(),
+            })
+            .unwrap();
+        index.add_edge(&old, &b, "wikilink").unwrap();
+        let new = write(&tmp, "notes/c.md", "alpha");
+        index.rename(&old, &new).unwrap();
+        let res = index.search("alpha", 10).unwrap();
+        assert_eq!(res, vec![new.clone()]);
+        let edges = index.edges_from(&new).unwrap();
+        assert_eq!(edges.len(), 1, "edges must point at the new path");
+    }
+
+    #[test]
     fn rename_keeps_indexed_body() {
         let tmp = TempDir::new().unwrap();
         let old = write(&tmp, "notes/a.md", "alpha");
@@ -314,5 +405,27 @@ mod tests {
         let index = Index::rebuild_from(tmp.path(), &files).unwrap();
         let res = index.search("alpha", 10).unwrap();
         assert_eq!(res, vec![p]);
+    }
+
+    #[test]
+    fn rebuild_with_edges_restores_link_graph() {
+        let tmp = TempDir::new().unwrap();
+        let a = write(&tmp, "notes/a.md", "alpha");
+        let b = write(&tmp, "notes/b.md", "beta");
+        let _index = Index::open(tmp.path()).unwrap();
+        let haven = tmp.path().join(".haven");
+        std::fs::remove_dir_all(&haven).unwrap();
+        let index = Index::rebuild_from_with_edges(
+            tmp.path(),
+            &[IndexedFile {
+                path: a.clone(),
+                body: "alpha".into(),
+                content_hash: "h1".into(),
+            }],
+            &[(a.clone(), b.clone(), "wikilink".to_string())],
+        )
+        .unwrap();
+        let edges = index.edges_from(&a).unwrap();
+        assert_eq!(edges, vec![(b, "wikilink".into())]);
     }
 }

@@ -72,7 +72,7 @@ Build, test, verify (introduced in Phase 1):
 - `npm run typecheck` (alias `tsc --noEmit`)
 - `npm run lint -- --max-warnings 0`
 - `node scripts/skills-ref-validate.mjs skills/`
-- `node scripts/okf-lint.mjs docs/fixtures/bundle.md`
+- `node scripts/okf-lint.mjs docs/fixtures/notes-200/`
 
 Branch convention: `cursor/<descriptive-name>-d85e` for short-lived agent work.
 

@@ -5,13 +5,22 @@
 // intentionally keep the parser simple here: heavy lifting lives in the
 // Rust crate; this script is only the pre-commit sniff check.
 
-import { readFileSync } from 'node:fs';
-import { globSync } from 'node:fs';
+import { existsSync, readFileSync, statSync, globSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const vaultRoot = process.argv[2] ?? resolve('notes');
 
+if (!existsSync(vaultRoot) || !statSync(vaultRoot).isDirectory()) {
+  console.error(`vault root not found: ${vaultRoot}`);
+  process.exit(1);
+}
+
 const files = globSync(`${vaultRoot}/**/*.md`);
+
+if (files.length === 0) {
+  console.error(`No Markdown files found under ${vaultRoot}; refusing to lint an empty set`);
+  process.exit(1);
+}
 
 const errors = [];
 

@@ -36,9 +36,10 @@ pub const RESERVED_LOG: &str = "log.md";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Frontmatter {
-    /// OKF required: non-empty `type` key.
+    /// OKF required: non-empty `type` key. Empty string in permissive reads
+    /// when the document did not declare a type.
     pub r#type: String,
-    /// OKF required: `okf_version: v0.1`.
+    /// OKF required: `okf_version: v0.1`. Empty string when not declared.
     pub okf_version: String,
     /// Optional recommended keys per OKF v0.1.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -70,6 +71,19 @@ impl Frontmatter {
             extra: BTreeMap::new(),
         }
     }
+
+    pub fn empty() -> Self {
+        Self {
+            r#type: String::new(),
+            okf_version: String::new(),
+            title: None,
+            description: None,
+            resource: None,
+            tags: BTreeMap::new(),
+            timestamp: None,
+            extra: BTreeMap::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -77,6 +91,9 @@ pub struct OkfDoc {
     pub frontmatter: Frontmatter,
     /// Markdown body, kept lossless for round-trip property tests.
     pub body: String,
+    /// Whether the document carried a `--- ... ---` block at all. Even
+    /// an empty-but-present frontmatter fence must round-trip.
+    pub had_frontmatter: bool,
 }
 
 /// Mode decides whether `parse` enforces OKF-strict or accepts permissive reads.
@@ -91,25 +108,14 @@ pub enum Mode {
 }
 
 pub fn parse(input: &str, mode: Mode) -> Result<OkfDoc, OkfError> {
-    let (raw_front, body) = split_frontmatter(input)?;
-    if body.trim().is_empty() {
-        // Body can be empty in extreme drafts; treat as warning only on
-        // permissive reads. Strict-write rejects.
-        if matches!(mode, Mode::StrictWrite) {
-            return Err(OkfError::EmptyBody);
-        }
-    }
+    let (raw_front, body, had_frontmatter) = split_frontmatter(input)?;
     match mode {
-        Mode::StrictWrite => parse_strict(raw_front, body, input),
-        Mode::PermissiveRead => parse_permissive(raw_front, body),
+        Mode::StrictWrite => parse_strict(raw_front, body, had_frontmatter),
+        Mode::PermissiveRead => parse_permissive(raw_front, body, had_frontmatter),
     }
 }
 
-fn parse_strict(raw: &str, body: &str, full: &str) -> Result<OkfDoc, OkfError> {
-    if raw.is_empty() {
-        // Strict-write requires frontmatter, but we still want a typed error.
-        return Err(OkfError::MissingType);
-    }
+fn parse_strict(raw: &str, body: &str, _had_frontmatter: bool) -> Result<OkfDoc, OkfError> {
     let value: serde_yaml::Value =
         serde_yaml::from_str(raw).map_err(|e| OkfError::FrontmatterParse(e.to_string()))?;
     let mut mapping = match value {
@@ -139,26 +145,99 @@ fn parse_strict(raw: &str, body: &str, full: &str) -> Result<OkfDoc, OkfError> {
         _ => return Err(OkfError::EmptyType),
     };
     let _ = r#type_str;
-    let _ = body;
-    let _ = full;
+    if body.trim().is_empty() {
+        return Err(OkfError::EmptyBody);
+    }
     Ok(OkfDoc {
         frontmatter: deserialize_front_strict(raw)?,
         body: body.to_string(),
+        had_frontmatter: true,
     })
 }
 
-fn parse_permissive(raw: &str, body: &str) -> Result<OkfDoc, OkfError> {
-    let fm: Frontmatter = if raw.trim().is_empty() {
-        Frontmatter::new("note")
-    } else {
-        match serde_yaml::from_str(raw) {
-            Ok(v) => v,
-            Err(_) => Frontmatter::new("unknown"),
+/// Permissive parse: never throw on missing `type`/`okf_version`/unknown
+/// keys. Preserve the user's original keys verbatim in `extra`.
+fn parse_permissive(raw: &str, body: &str, had_frontmatter: bool) -> Result<OkfDoc, OkfError> {
+    // A document with no frontmatter block parses an empty YAML mapping;
+    // give the file a default `type` so the typed doc is not blank-fields.
+    if raw.trim().is_empty() {
+        return Ok(OkfDoc {
+            frontmatter: Frontmatter::new("note"),
+            body: body.to_string(),
+            had_frontmatter,
+        });
+    }
+    let mut fm = Frontmatter::empty();
+    if let Ok(value) = serde_yaml::from_str::<serde_yaml::Value>(raw) {
+        if let serde_yaml::Value::Mapping(map) = value {
+            for (k, v) in map {
+                let Some(key) = k.as_str() else {
+                    // Non-string keys cannot round-trip; skip.
+                    continue;
+                };
+                match key {
+                    "type" => {
+                        if let serde_yaml::Value::String(s) = &v {
+                            fm.r#type = s.clone();
+                        }
+                    }
+                    "okf_version" => {
+                        if let serde_yaml::Value::String(s) = &v {
+                            fm.okf_version = s.clone();
+                        }
+                    }
+                    "title" => {
+                        if let serde_yaml::Value::String(s) = &v {
+                            fm.title = Some(s.clone());
+                        }
+                    }
+                    "description" => {
+                        if let serde_yaml::Value::String(s) = &v {
+                            fm.description = Some(s.clone());
+                        }
+                    }
+                    "resource" => {
+                        if let serde_yaml::Value::String(s) = &v {
+                            fm.resource = Some(s.clone());
+                        }
+                    }
+                    "tags" => {
+                        if let serde_yaml::Value::Mapping(m) = &v {
+                            let mut tags = BTreeMap::new();
+                            for (tk, tv) in m {
+                                let Some(tag) = tk.as_str() else {
+                                    continue;
+                                };
+                                if let serde_yaml::Value::Sequence(seq) = tv {
+                                    let values = seq
+                                        .iter()
+                                        .filter_map(|x| match x {
+                                            serde_yaml::Value::String(s) => Some(s.clone()),
+                                            _ => None,
+                                        })
+                                        .collect();
+                                    tags.insert(tag.to_string(), values);
+                                }
+                            }
+                            fm.tags = tags;
+                        }
+                    }
+                    "timestamp" => {
+                        if let serde_yaml::Value::String(s) = &v {
+                            fm.timestamp = Some(s.clone());
+                        }
+                    }
+                    _ => {
+                        fm.extra.insert(key.to_string(), v);
+                    }
+                }
+            }
         }
-    };
+    }
     Ok(OkfDoc {
         frontmatter: fm,
         body: body.to_string(),
+        had_frontmatter,
     })
 }
 
@@ -181,52 +260,66 @@ fn deserialize_front_strict(raw: &str) -> Result<Frontmatter, OkfError> {
     Ok(fm)
 }
 
-/// Split Markdown into `(frontmatter_raw, body)`. OKF allows frontmatter to be
-/// absent; we return empty `raw` in that case.
-fn split_frontmatter(input: &str) -> Result<(&str, &str), OkfError> {
+/// Split Markdown into `(frontmatter_raw, body, had_frontmatter)`. OKF allows
+/// frontmatter to be absent; we return empty `raw` in that case. A leading
+/// `---` without a closing fence is treated as a body-level thematic break.
+fn split_frontmatter(input: &str) -> Result<(&str, &str, bool), OkfError> {
     if !input.starts_with("---") {
-        return Ok(("", input));
+        return Ok(("", input, false));
     }
-    // Find the closing fence on its own line.
     let mut rest = &input[3..];
     if let Some(stripped) = rest.strip_prefix('\n') {
         rest = stripped;
     } else if let Some(stripped) = rest.strip_prefix("\r\n") {
         rest = stripped;
     }
-    let mut split_at: Option<usize> = None;
+    let mut fence_start: Option<usize> = None;
     let mut idx = 0usize;
     for line in rest.split_inclusive('\n') {
         if line.trim_end_matches(['\n', '\r']).trim() == "---" {
-            split_at = Some(idx + line.len());
+            fence_start = Some(idx);
             break;
         }
         idx += line.len();
     }
-    let Some(offset) = split_at else {
-        return Err(OkfError::FrontmatterParse(
-            "frontmatter opened with `---` but no closing fence".into(),
-        ));
+    let fence_offset = match fence_start {
+        Some(offset) => offset,
+        None => return Ok(("", input, false)),
     };
-    let body_start_in_rest = offset;
-    strip_body(rest, body_start_in_rest)
-}
-
-fn strip_body(rest: &str, body_start: usize) -> Result<(&str, &str), OkfError> {
-    let pre_raw_end = body_start.saturating_sub("---".len());
-    let raw = &rest[..pre_raw_end];
-    let body = &rest[body_start..];
-    // Trim the leading newline after the closing fence.
-    let body = body
-        .strip_prefix("\r\n")
-        .or_else(|| body.strip_prefix('\n'))
-        .unwrap_or(body);
-    Ok((raw, body))
+    // YAML content is everything before the closing fence line.
+    let raw = &rest[..fence_offset];
+    // Body starts after the closing fence line; the line itself is
+    // `---\n` (or `---\r\n`); we don't recursively trim inside `raw`,
+    // since `fence_offset` is already at the start of `---`.
+    let mut after_fence = &rest[fence_offset..];
+    if let Some(stripped) = after_fence.strip_prefix("---\r\n") {
+        after_fence = stripped;
+    } else if let Some(stripped) = after_fence.strip_prefix("---\n") {
+        after_fence = stripped;
+    } else if let Some(stripped) = after_fence.strip_prefix("---") {
+        after_fence = stripped;
+    }
+    Ok((raw, after_fence, true))
 }
 
 /// Reconstruct the canonical Markdown serialization for an `OkfDoc`.
 /// Unknown keys in `Frontmatter.extra` are preserved verbatim via serde_yaml.
+/// Empty frontmatter fences round-trip as `---\n---\n`.
 pub fn serialize(doc: &OkfDoc) -> Result<String, OkfError> {
+    if !doc.had_frontmatter {
+        return Ok(doc.body.clone());
+    }
+    if doc.frontmatter.r#type.is_empty()
+        && doc.frontmatter.okf_version.is_empty()
+        && doc.frontmatter.title.is_none()
+        && doc.frontmatter.description.is_none()
+        && doc.frontmatter.resource.is_none()
+        && doc.frontmatter.tags.is_empty()
+        && doc.frontmatter.timestamp.is_none()
+        && doc.frontmatter.extra.is_empty()
+    {
+        return Ok(format!("---\n---\n{}", doc.body));
+    }
     let front_yaml = serde_yaml::to_string(&doc.frontmatter)
         .map_err(|e| OkfError::FrontmatterParse(e.to_string()))?;
     Ok(format!("---\n{front_yaml}---\n{}", doc.body))
@@ -301,10 +394,20 @@ type: note
     }
 
     #[test]
-    fn permissive_read_returns_pseudo_frontmatter_on_garbage() {
+    fn strict_write_rejects_missing_type_before_empty_body() {
+        // Missing type must surface even when the body is empty.
+        let raw = "---
+okf_version: v0.1
+---
+";
+        let err = parse(raw, Mode::StrictWrite).unwrap_err();
+        assert!(matches!(err, OkfError::MissingType));
+    }
+
+    #[test]
+    fn permissive_read_returns_typed_doc_on_garbage() {
         let raw = "not yaml at all\n---\nbody text\n";
         let parsed = parse(raw, Mode::PermissiveRead).expect("ok");
-        // Permissive reads never panic; a synthetic type is allowed.
         assert!(!parsed.frontmatter.r#type.is_empty());
         assert!(parsed.body.contains("body text"));
     }
@@ -323,10 +426,51 @@ made_up_key: 42
     }
 
     #[test]
+    fn permissive_read_preserves_unknown_keys_on_reserialize() {
+        let raw = "---\nokf_version: v0.1\ntype: exotic\nmade_up_key: 42\n---\n# body";
+        let parsed = parse(raw, Mode::PermissiveRead).expect("ok");
+        let serialized = serialize(&parsed).expect("ok");
+        let again = parse(&serialized, Mode::PermissiveRead).expect("ok");
+        let made_up = again
+            .frontmatter
+            .extra
+            .get("made_up_key")
+            .and_then(|v| v.as_i64())
+            .unwrap();
+        assert_eq!(made_up, 42);
+    }
+
+    #[test]
+    fn permissive_read_preserves_unknown_keys_when_type_missing() {
+        let raw = "---\ntitle: My note\ncustom: 1\n---\nbody\n";
+        let parsed = parse(raw, Mode::PermissiveRead).expect("ok");
+        assert_eq!(parsed.frontmatter.title.as_deref(), Some("My note"));
+        assert!(parsed.frontmatter.extra.contains_key("custom"));
+        assert!(parsed.frontmatter.r#type.is_empty());
+    }
+
+    #[test]
+    fn body_starting_with_dashes_is_not_a_frontmatter() {
+        let parsed = parse("---\nbody\n", Mode::PermissiveRead).expect("ok");
+        assert!(!parsed.had_frontmatter);
+        assert_eq!(parsed.body, "---\nbody\n");
+    }
+
+    #[test]
+    fn empty_but_present_frontmatter_round_trips() {
+        let raw = "---\n---\nbody\n";
+        let parsed = parse(raw, Mode::PermissiveRead).expect("ok");
+        assert!(parsed.had_frontmatter);
+        let serialized = serialize(&parsed).expect("ok");
+        let again = parse(&serialized, Mode::PermissiveRead).expect("ok");
+        assert!(again.had_frontmatter);
+        assert_eq!(again.body, "body\n");
+    }
+
+    #[test]
     fn round_trip_preserves_unknown_keys() {
         let parsed = parse(SAMPLE_OKF, Mode::PermissiveRead).expect("ok");
         let serialized = serialize(&parsed).expect("ok");
-        // Re-parse the same doc permissively and the extras stay.
         let again = parse(&serialized, Mode::PermissiveRead).expect("ok");
         assert_eq!(parsed, again);
     }

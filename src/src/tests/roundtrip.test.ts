@@ -24,12 +24,27 @@ describe('parseFrontmatter', () => {
     const pair = parseFrontmatter(sample);
     assert.match(pair.raw, /title: Sample/);
     assert.match(pair.body, /# Hello/);
+    assert.equal(pair.hadFrontmatter, true);
   });
 
   it('handles missing frontmatter gracefully', () => {
     const pair = parseFrontmatter('plain body');
     assert.equal(pair.raw, '');
     assert.equal(pair.body, 'plain body');
+    assert.equal(pair.hadFrontmatter, false);
+  });
+
+  it('treats a leading --- without a closing fence as body', () => {
+    const pair = parseFrontmatter('---\nbody\n');
+    assert.equal(pair.hadFrontmatter, false);
+    assert.equal(pair.body, '---\nbody\n');
+  });
+
+  it('preserves an empty-but-present frontmatter fence', () => {
+    const pair = parseFrontmatter('---\n---\nbody\n');
+    assert.equal(pair.hadFrontmatter, true);
+    assert.equal(pair.raw, '');
+    assert.equal(pair.body, 'body\n');
   });
 });
 
@@ -38,5 +53,12 @@ describe('joinFrontmatter', () => {
     const pair = parseFrontmatter(sample);
     const reassembled = joinFrontmatter(pair);
     assert.equal(reassembled, sample);
+  });
+
+  it('preserves an empty-but-present fence on reassembly', () => {
+    const input = '---\n---\nbody text';
+    const pair = parseFrontmatter(input);
+    const reassembled = joinFrontmatter(pair);
+    assert.equal(reassembled, '---\n\n---\nbody text');
   });
 });

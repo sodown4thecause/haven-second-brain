@@ -1,0 +1,15 @@
+---
+okf_version: v0.1
+type: index
+title: question 46
+timestamp: 2024-01-18
+tags:
+  topic:
+    - question
+---
+
+# question 46
+
+Body line one for note 46.
+
+Body line two with reference to [other](#note-47).

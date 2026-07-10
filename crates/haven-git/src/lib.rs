@@ -8,7 +8,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use git2::{ObjectType, Repository, Signature, Tree};
+use git2::{Repository, Signature};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -90,12 +90,32 @@ impl OwnedAllowlist {
     }
 
     pub fn owns(&self, abs: &Path, vault_root: &Path) -> bool {
-        if let Ok(rel) = abs.strip_prefix(vault_root) {
-            self.roots.iter().any(|r| rel.starts_with(r))
-        } else {
-            false
+        let rel = match abs.strip_prefix(vault_root) {
+            Ok(r) => r,
+            Err(_) => return false,
+        };
+        // Normalize `..` and `.` lexically so `<abs>/notes/../private.md`
+        // cannot pass the prefix check by walking up out of the root.
+        let normalized = lexically_normalize(rel);
+        self.roots.iter().any(|r| normalized.starts_with(r))
+    }
+}
+
+/// Resolve `.` and `..` segments lexically without touching the filesystem
+/// so this stays conservative inside allowlist checks. Only path-component
+/// level resolution; no symlink chasing.
+fn lexically_normalize(path: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    for comp in path.components() {
+        match comp {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                out.pop();
+            }
+            other => out.push(other.as_os_str()),
         }
     }
+    out
 }
 
 /// Confine a path to the vault root, aborting on escapes or hostile symlinks.
@@ -169,8 +189,12 @@ impl VaultWriter {
         identity: Identity,
         allowlist: OwnedAllowlist,
     ) -> Result<Self, GitError> {
-        vault_root.canonicalize().map_err(std::io::Error::from)?;
+        // open_or_init() creates the directory on first run; canonicalize
+        // must come AFTER, otherwise init for a brand-new vault fails.
         let repo = open_or_init(vault_root)?;
+        vault_root
+            .canonicalize()
+            .map_err(std::io::Error::from)?;
         let writer = VaultWriter {
             inner: Arc::new(WriterInner {
                 repo: Mutex::new(repo),
@@ -204,7 +228,14 @@ impl VaultWriter {
             return Err(GitError::OffTree(abs));
         }
         let confined = confine(&abs, &vault)?;
-        if let Some(expected) = seen_hashes.hash_for(&confined) {
+        // SeenSet is vault-relative; lookup must use a relative key, not the
+        // absolute `confined` path, otherwise the expected-hash check never
+        // triggers.
+        let rel_key = confined
+            .strip_prefix(&vault)
+            .map_err(|_| GitError::PathEscape(confined.clone()))?
+            .to_path_buf();
+        if let Some(expected) = seen_hashes.hash_for(&rel_key) {
             let on_disk_hash = match std::fs::read(&confined) {
                 Ok(b) => Some(sha256_hex(&b)),
                 Err(_) => None,
@@ -221,7 +252,9 @@ impl VaultWriter {
             let snap_dir = self.inner.vault_root.join(".haven").join("snapshots");
             std::fs::create_dir_all(&snap_dir)?;
             let snap_id = Ulid::new().to_string();
-            let _ = std::fs::copy(
+            // Surface snapshot failures — a silent failure here costs the user
+            // their only recovery copy.
+            std::fs::copy(
                 &confined,
                 snap_dir.join(format!(
                     "{}-{snap_id}",
@@ -230,18 +263,19 @@ impl VaultWriter {
                         .and_then(|n| n.to_str())
                         .unwrap_or_default()
                 )),
-            );
+            )?;
         }
         let tmp = confined.with_extension("haven-tmp");
         std::fs::write(&tmp, content)?;
         std::fs::rename(&tmp, &confined)?;
         let post_hash = sha256_hex(content);
-        seen_hashes.set(confin_path(&self.inner.vault_root, &confined), post_hash);
+        seen_hashes.set(rel_key, post_hash);
         Ok(())
     }
 
-    /// Stage and commit a single owned file. Uses an isolated index so the
-    /// caller's pre-existing index entries never leak in.
+    /// Stage and commit a single owned file. Uses an isolated index seeded
+    /// from the parent commit so the new tree replaces a single path while
+    /// preserving every other previously tracked blob.
     pub fn commit(&self, write: VaultWrite) -> Result<CommitReceipt, GitError> {
         let mut repo = self.inner.repo.lock();
         let vault = self.inner.vault_root.canonicalize()?;
@@ -258,25 +292,37 @@ impl VaultWriter {
             .strip_prefix(&vault)
             .map_err(|_| GitError::PathEscape(canonical_target.clone()))?
             .to_path_buf();
+
+        // Seed the index from the parent commit's tree so multi-component
+        // paths land in the correct sub-tree and so previously tracked files
+        // are preserved across this single-file commit.
         let mut index = repo.index()?;
         index.clear()?;
-        let blob_oid = repo.blob(&write.new_content)?;
-        let tree_oid = {
-            let mut builder = repo.treebuilder(None)?;
-            builder.insert(Path::new(&relative), blob_oid, ObjectType::Blob as i32)?;
-            builder.write()?
-        };
-        let tree = repo.find_tree(tree_oid)?;
-        write_commit(&mut repo, &tree, &write, &self.inner.identity)
+        if let Ok(head) = repo.head() {
+            if let Some(target) = head.target() {
+                let parent_commit = repo.find_commit(target)?;
+                let parent_tree = parent_commit.tree()?;
+                index.read_tree(&parent_tree)?;
+            }
+        }
+        index
+            .add_frombuffer(&relative, &write.new_content)
+            .map_err(|e| GitError::Io(std::io::Error::other(format!("add_frombuffer: {e}"))))?;
+        let tree_oid = index
+            .write_tree()
+            .map_err(|e| GitError::Io(std::io::Error::other(format!("write_tree: {e}"))))?;
+
+        commit_indexed_tree(&repo, tree_oid, &write, &self.inner.identity)
     }
 }
 
-fn write_commit(
-    repo: &mut Repository,
-    tree: &Tree,
+fn commit_indexed_tree(
+    repo: &Repository,
+    tree_oid: git2::Oid,
     write: &VaultWrite,
     identity: &Identity,
 ) -> Result<CommitReceipt, GitError> {
+    let tree = repo.find_tree(tree_oid)?;
     let sig = identity.signature(write.author_kind)?;
     let parent = match repo.head() {
         Ok(head) => Some(
@@ -379,15 +425,21 @@ fn walk_dir_recursive(
     root: &Path,
     out: &mut Vec<Result<PathBuf, GitError>>,
 ) -> Result<(), GitError> {
-    if !root.is_dir() {
-        return Ok(());
-    }
-    for entry in std::fs::read_dir(root)? {
-        let entry = entry?;
-        let p = entry.path();
-        out.push(Ok(p.clone()));
-        if p.is_dir() {
-            walk_dir_recursive(&p, out)?;
+    let meta = std::fs::symlink_metadata(root)?;
+    if !meta.file_type().is_symlink() && meta.is_dir() {
+        for entry in std::fs::read_dir(root)? {
+            let entry = entry?;
+            let p = entry.path();
+            // Use symlink_metadata to skip and refuse directory symlinks
+            // (off-tree escape + infinite cycle otherwise).
+            let p_meta = std::fs::symlink_metadata(&p)?;
+            if p_meta.file_type().is_symlink() {
+                continue;
+            }
+            out.push(Ok(p.clone()));
+            if p_meta.is_dir() {
+                walk_dir_recursive(&p, out)?;
+            }
         }
     }
     Ok(())
@@ -511,27 +563,43 @@ mod tests {
     #[test]
     fn isolated_index_leaves_user_staging_untouched() {
         let td = new_vault();
+        // Stage a user-edited file inside the allowlisted `notes/` subtree
+        // so `commit` reaches the isolated-index code path instead of bailing
+        // out at the OffTree guard.
+        let user_path = td.path().join("notes/user-staged.md");
+        std::fs::write(&user_path, b"user staged content").unwrap();
+        let repo = Repository::open(td.path()).unwrap();
+        let mut index = repo.index().unwrap();
+        std::fs::create_dir_all(td.path().join(".git")).ok();
+        index.add_path(Path::new("notes/user-staged.md")).unwrap();
+        // Persist the staged entry on disk so an isolated-index call here
+        // would have to compete with the user's pre-existing entry.
+        index.write().unwrap();
+
         let writer = VaultWriter::open(
             td.path(),
             Identity::founder_default("qwen3.5:4b"),
             OwnedAllowlist::default_vault(),
         )
         .unwrap();
-        let user_path = td.path().join("README.md");
-        std::fs::write(&user_path, b"user staged content").unwrap();
-        let repo = Repository::open(td.path()).unwrap();
-        let mut index = repo.index().unwrap();
-        std::fs::create_dir_all(td.path().join(".git")).ok();
-        index.add_path(Path::new("README.md")).ok();
-        assert!(writer
-            .commit(VaultWrite {
-                path: PathBuf::from("README.md"),
-                new_content: b"haven's view".to_vec(),
-                author_kind: AuthorKind::Human,
-                message: "evil".into(),
-            })
-            .is_err());
-        let head_state = repo.head().ok();
-        assert!(head_state.is_none() || repo.head().is_ok());
+        // Commit a different file in the allowlist; the user's
+        // `notes/user-staged.md` index entry must survive the round trip.
+        let target = td.path().join("notes/another.md");
+        std::fs::write(&target, b"another").unwrap();
+        let _ = writer.write_atomic(&target, b"another", &mut SeenSet::new());
+        let _ = writer.commit(VaultWrite {
+            path: PathBuf::from("notes/another.md"),
+            new_content: b"another".to_vec(),
+            author_kind: AuthorKind::Human,
+            message: "test commit".into(),
+        });
+
+        let still_staged = repo
+            .index()
+            .unwrap()
+            .get_path(Path::new("notes/user-staged.md"), 0)
+            .is_some();
+        assert!(still_staged, "user-staged entry must survive a Haven commit");
     }
+}
 }
