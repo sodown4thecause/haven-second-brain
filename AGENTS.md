@@ -2,9 +2,10 @@
 
 Haven is a git-native, agent-native "second brain": a local-first Tauri desktop app
 whose data layer is a plain-text Git repository conforming to the Open Knowledge
-Format (OKF v0.1), with fully offline AI (Gemma 4 via Ollama/llama.cpp), Agent
-Skills (`SKILL.md`), and built-in MCP interop. See `PLAN.md` for the phased build
-plan and architecture decisions.
+Format (OKF v0.1), with fully offline AI (hardware-selected local models via
+Ollama/llama.cpp; Gemma 4 E4B is the shipped default), Agent Skills (`SKILL.md`),
+and built-in MCP interop. See `PLAN.md` for the phased build plan and
+architecture decisions.
 
 This file is the contract for every agent (and human) working in this repo.
 Read it fully before making changes. When a rule here conflicts with your general
@@ -84,9 +85,10 @@ habits, this file wins.
 - **Security:** strict CSP; never load remote JS/HTML into the webview; no
   `dangerousRemoteDomainIpcAccess`. All external content (scraped pages,
   imported HTML) is sanitized before rendering.
-- **Sidecars (Ollama/llama.cpp):** managed as Tauri sidecars with health checks,
-  graceful shutdown, and version pinning. Never assume a sidecar is running —
-  every call path handles "engine unavailable" with a user-actionable error.
+- **Sidecars (Ollama):** managed as a Tauri sidecar or local process with health
+  checks, graceful shutdown, and version pinning. Never assume the engine is
+  running — every call path handles "engine unavailable" with a user-actionable
+  error. Defer custom llama.cpp sidecar to avoid multi-platform compilation/distribution overhead in v1.
 - **State:** long-lived state lives in `tauri::State` behind typed structs.
   Background workers (git watcher, indexer) communicate with the UI via events
   (`emit`), never by polling from the frontend.
@@ -107,11 +109,16 @@ habits, this file wins.
   }
   ```
 
-- **State & data flow:** UI state derives from the Yjs document and Tauri events.
-  Do not duplicate document state into ad-hoc stores; subscribe to the source.
-- **BlockSuite/Yjs:** all document mutations go through BlockSuite transactions —
-  never mutate Yjs types outside a transaction. Custom blocks live in their own
-  package with schema, model, and view separated.
+- **State & data flow:** UI state derives from the editor's document model and
+  Tauri events. Do not duplicate document state into ad-hoc stores; subscribe
+  to the source.
+- **Editor (pending the P0.2 spike ADR):** whatever editor is chosen, the
+  Markdown file on disk — not the editor's internal model — is the source of
+  truth, and the editor must round-trip frontmatter, wikilinks, and tables
+  losslessly (CI-tested against fixture vaults). If BlockSuite is selected:
+  all document mutations go through BlockSuite transactions — never mutate Yjs
+  types outside a transaction; custom blocks live in their own package with
+  schema, model, and view separated.
 - **IPC hygiene:** every `invoke()` call is wrapped in a typed client
   (`src/lib/ipc.ts`) — no raw string command names scattered through components.
 
@@ -132,15 +139,20 @@ habits, this file wins.
 - **Provider abstraction:** all model calls go through the Vercel AI SDK with a
   single provider factory. Local default is Ollama (`ai-sdk-ollama`); never
   hardcode a model name at call sites — models are configuration.
+- **Layer boundary:** model calls live in the TS layer (AI SDK). The Rust core
+  owns retrieval, indexing, and Git, and must never depend on a Node runtime;
+  the boundary between them is typed IPC only.
 - **Structured output first:** for classification, extraction, and ingestion use
   `generateObject` with a Zod schema. Free-form generation is only for chat and
   prose drafting. Validate LLM output like untrusted user input — because it is.
 - **Prompts are code:** system prompts live in versioned files
   (`src-tauri/prompts/` or `prompts/`), not string literals; changes to prompts
   get the same review as changes to code.
-- **Embeddings:** EmbeddingGemma, 768-dim stored, Matryoshka truncation allowed
-  for pre-filtering. Embedding versioning: store the model id alongside vectors;
-  a model change triggers reindex, never mixed-model similarity search.
+- **Embeddings:** default `nomic-embed-text` (768-dim, 8k-token context);
+  EmbeddingGemma and Qwen3-Embedding are supported alternates. Matryoshka
+  truncation allowed for pre-filtering. Embedding versioning: store the model
+  id alongside vectors; a model change triggers reindex, never mixed-model
+  similarity search.
 - **Token discipline:** retrieval and skill loading respect explicit token
   budgets. Progressive disclosure for skills (metadata → SKILL.md → resources)
   is mandatory, not optional.
