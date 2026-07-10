@@ -303,8 +303,28 @@ impl VaultWriter {
                 index.read_tree(&parent_tree)?;
             }
         }
+        // git2 0.18 only exposes the higher-level
+        // `Index::add_frombuffer` through the entries path. Build an
+        // `IndexEntry` with the standard 0100644 file mode so the blob
+        // lands at the vault-relative path under the same tree-seeded
+        // index.
+        let blob_oid = repo.blob(&write.new_content)?;
+        let entry = git2::IndexEntry {
+            ctime: git2::IndexTime::new(0, 0),
+            mtime: git2::IndexTime::new(0, 0),
+            dev: 0,
+            ino: 0,
+            mode: 0o100644,
+            uid: 0,
+            gid: 0,
+            file_size: 0,
+            id: blob_oid,
+            flags: 0,
+            flags_extended: 0,
+            path: relative.to_string_lossy().into_owned().into_bytes(),
+        };
         index
-            .add_frombuffer(&relative, &write.new_content)
+            .add_frombuffer(&entry, &write.new_content)
             .map_err(|e| GitError::Io(std::io::Error::other(format!("add_frombuffer: {e}"))))?;
         let tree_oid = index
             .write_tree()
@@ -338,7 +358,7 @@ fn commit_indexed_tree(
         &sig,
         &sig,
         &write.message,
-        tree,
+        &tree,
         &parents.iter().collect::<Vec<_>>(),
     )?;
     Ok(CommitReceipt {
