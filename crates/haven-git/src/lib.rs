@@ -393,6 +393,8 @@ fn walk_dir_recursive(
     Ok(())
 }
 
+pub mod safe;
+
 #[cfg(test)]
 mod tests {
     use super::*;
