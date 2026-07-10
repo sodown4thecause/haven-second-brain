@@ -475,7 +475,7 @@ mod tests {
     #[test]
     fn opens_or_inits_a_vault_repo() {
         let td = new_vault();
-        let repo = Repository::open(td.path()).unwrap();
+        let repo = open_or_init(td.path()).unwrap();
         assert!(repo.is_empty().unwrap_or(true));
     }
 
@@ -582,9 +582,8 @@ mod tests {
         // out at the OffTree guard.
         let user_path = td.path().join("notes/user-staged.md");
         std::fs::write(&user_path, b"user staged content").unwrap();
-        let repo = Repository::open(td.path()).unwrap();
+        let repo = open_or_init(td.path()).unwrap();
         let mut index = repo.index().unwrap();
-        std::fs::create_dir_all(td.path().join(".git")).ok();
         index.add_path(Path::new("notes/user-staged.md")).unwrap();
         // Persist the staged entry on disk so an isolated-index call here
         // would have to compete with the user's pre-existing entry.
