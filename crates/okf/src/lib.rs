@@ -100,8 +100,8 @@ pub fn parse(input: &str, mode: Mode) -> Result<OkfDoc, OkfError> {
         }
     }
     match mode {
-        Mode::StrictWrite => parse_strict(&raw_front, body, input),
-        Mode::PermissiveRead => parse_permissive(&raw_front, body),
+        Mode::StrictWrite => parse_strict(raw_front, body, input),
+        Mode::PermissiveRead => parse_permissive(raw_front, body),
     }
 }
 
@@ -212,7 +212,7 @@ fn split_frontmatter(input: &str) -> Result<(&str, &str), OkfError> {
     strip_body(rest, body_start_in_rest)
 }
 
-fn strip_body<'a>(rest: &'a str, body_start: usize) -> Result<(&'a str, &'a str), OkfError> {
+fn strip_body(rest: &str, body_start: usize) -> Result<(&str, &str), OkfError> {
     let pre_raw_end = body_start.saturating_sub("---".len());
     let raw = &rest[..pre_raw_end];
     let body = &rest[body_start..];
