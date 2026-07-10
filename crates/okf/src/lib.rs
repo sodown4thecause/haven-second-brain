@@ -172,66 +172,66 @@ fn parse_permissive(raw: &str, body: &str, had_frontmatter: bool) -> Result<OkfD
         serde_yaml::from_str::<serde_yaml::Value>(raw)
     {
         for (k, v) in map {
-                let Some(key) = k.as_str() else {
-                    // Non-string keys cannot round-trip; skip.
-                    continue;
-                };
-                match key {
-                    "type" => {
-                        if let serde_yaml::Value::String(s) = &v {
-                            fm.r#type = s.clone();
-                        }
-                    }
-                    "okf_version" => {
-                        if let serde_yaml::Value::String(s) = &v {
-                            fm.okf_version = s.clone();
-                        }
-                    }
-                    "title" => {
-                        if let serde_yaml::Value::String(s) = &v {
-                            fm.title = Some(s.clone());
-                        }
-                    }
-                    "description" => {
-                        if let serde_yaml::Value::String(s) = &v {
-                            fm.description = Some(s.clone());
-                        }
-                    }
-                    "resource" => {
-                        if let serde_yaml::Value::String(s) = &v {
-                            fm.resource = Some(s.clone());
-                        }
-                    }
-                    "tags" => {
-                        if let serde_yaml::Value::Mapping(m) = &v {
-                            let mut tags = BTreeMap::new();
-                            for (tk, tv) in m {
-                                let Some(tag) = tk.as_str() else {
-                                    continue;
-                                };
-                                if let serde_yaml::Value::Sequence(seq) = tv {
-                                    let values = seq
-                                        .iter()
-                                        .filter_map(|x| match x {
-                                            serde_yaml::Value::String(s) => Some(s.clone()),
-                                            _ => None,
-                                        })
-                                        .collect();
-                                    tags.insert(tag.to_string(), values);
-                                }
-                            }
-                            fm.tags = tags;
-                        }
-                    }
-                    "timestamp" => {
-                        if let serde_yaml::Value::String(s) = &v {
-                            fm.timestamp = Some(s.clone());
-                        }
-                    }
-                    _ => {
-                        fm.extra.insert(key.to_string(), v);
+            let Some(key) = k.as_str() else {
+                // Non-string keys cannot round-trip; skip.
+                continue;
+            };
+            match key {
+                "type" => {
+                    if let serde_yaml::Value::String(s) = &v {
+                        fm.r#type = s.clone();
                     }
                 }
+                "okf_version" => {
+                    if let serde_yaml::Value::String(s) = &v {
+                        fm.okf_version = s.clone();
+                    }
+                }
+                "title" => {
+                    if let serde_yaml::Value::String(s) = &v {
+                        fm.title = Some(s.clone());
+                    }
+                }
+                "description" => {
+                    if let serde_yaml::Value::String(s) = &v {
+                        fm.description = Some(s.clone());
+                    }
+                }
+                "resource" => {
+                    if let serde_yaml::Value::String(s) = &v {
+                        fm.resource = Some(s.clone());
+                    }
+                }
+                "tags" => {
+                    if let serde_yaml::Value::Mapping(m) = &v {
+                        let mut tags = BTreeMap::new();
+                        for (tk, tv) in m {
+                            let Some(tag) = tk.as_str() else {
+                                continue;
+                            };
+                            if let serde_yaml::Value::Sequence(seq) = tv {
+                                let values = seq
+                                    .iter()
+                                    .filter_map(|x| match x {
+                                        serde_yaml::Value::String(s) => Some(s.clone()),
+                                        _ => None,
+                                    })
+                                    .collect();
+                                tags.insert(tag.to_string(), values);
+                            }
+                        }
+                        fm.tags = tags;
+                    }
+                }
+                "timestamp" => {
+                    if let serde_yaml::Value::String(s) = &v {
+                        fm.timestamp = Some(s.clone());
+                    }
+                }
+                _ => {
+                    fm.extra.insert(key.to_string(), v);
+                }
+            }
             }
         }
     }
