@@ -134,13 +134,11 @@ fn parse_strict(raw: &str, body: &str, full: &str) -> Result<OkfDoc, OkfError> {
         });
     }
     let r#type = mapping.remove("type").ok_or(OkfError::MissingType)?;
-    let r#type = match r#type {
+    let r#type_str: String = match r#type {
         serde_yaml::Value::String(s) if !s.is_empty() => s,
         _ => return Err(OkfError::EmptyType),
     };
-    let fm: Frontmatter =
-        serde_yaml::from_str(raw).map_err(|e| OkfError::FrontmatterParse(e.to_string()))?;
-    let _ = fm;
+    let _ = r#type_str;
     let _ = body;
     let _ = full;
     Ok(OkfDoc {
@@ -177,8 +175,8 @@ fn deserialize_front_strict(raw: &str) -> Result<Frontmatter, OkfError> {
         return Err(OkfError::EmptyType);
     }
     // Sort extras to make the linter deterministic.
-    let mut sorted: BTreeMap<String, serde_yaml::Value> = BTreeMap::new();
-    sorted.extend(fm.extra.drain());
+    let sorted: BTreeMap<String, serde_yaml::Value> =
+        fm.extra.into_iter().collect::<BTreeMap<_, _>>();
     fm.extra = sorted;
     Ok(fm)
 }
@@ -211,11 +209,7 @@ fn split_frontmatter(input: &str) -> Result<(&str, &str), OkfError> {
         ));
     };
     let body_start_in_rest = offset;
-    let raw = &rest[..body_start_in_rest - "---".len()];
-    let body = &rest[body_start_in_rest..];
-    let _ = raw;
-    let _ = body;
-    Ok(strip_body(rest, body_start_in_rest))
+    strip_body(rest, body_start_in_rest)
 }
 
 fn strip_body<'a>(rest: &'a str, body_start: usize) -> Result<(&'a str, &'a str), OkfError> {
@@ -340,7 +334,7 @@ made_up_key: 42
     #[test]
     fn reserved_index_requires_index_type() {
         let mut doc = Frontmatter::new("note");
-        let err = lint_reserved_filename("index.md", &doc).unwrap_err();
+        let _err = lint_reserved_filename("index.md", &doc).unwrap_err();
         doc.r#type = "index".into();
         assert!(lint_reserved_filename("index.md", &doc).is_ok());
     }
