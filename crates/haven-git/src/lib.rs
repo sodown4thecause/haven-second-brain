@@ -261,9 +261,11 @@ impl VaultWriter {
         let mut index = repo.index()?;
         index.clear()?;
         let blob_oid = repo.blob(&write.new_content)?;
-        let mut builder = repo.treebuilder(None)?;
-        builder.insert(Path::new(&relative), blob_oid, ObjectType::Blob as i32)?;
-        let tree_oid = builder.write()?;
+        let tree_oid = {
+            let mut builder = repo.treebuilder(None)?;
+            builder.insert(Path::new(&relative), blob_oid, ObjectType::Blob as i32)?;
+            builder.write()?
+        };
         let tree = repo.find_tree(tree_oid)?;
         write_commit(&mut repo, &tree, &write, &self.inner.identity)
     }
