@@ -92,9 +92,20 @@ retrieval-only answers available.
 
 ## Acceptance evidence
 
-- `crates/haven-engine` test `model_manifest_pin.rs` confirms the runtime
-  refuses to load a model whose digest does not match the pinned manifest.
-- `crates/haven-engine` test `embedding_stamp.rs` confirms every embedded
-  vector row stores model id + dimensions + chunking policy.
+R0 records the evidence contract. M1/M2 scaffolding adds the test files and
+the bench harness. R0 contains no `crates/haven-engine` sources and no
+`docs/research/hardware-benchmarks.md`; no model pull is allowed until M1
+captures the benchmark numbers. The references below describe the
+**expected** location and behavior of each acceptance test.
+
+- `crates/haven-engine/tests/model_manifest_pin.rs` confirms the runtime
+  refuses to load a model whose digest does not match the pinned manifest,
+  including chat template / quantization / license mismatches.
+- `crates/haven-engine/tests/embedding_stamp.rs` confirms every embedded
+  vector row stores model id, dimensions, quantization, and chunking policy.
 - `docs/research/hardware-benchmarks.md` records the first-token, prompt
-  throughput, and peak working-set numbers per tier.
+  throughput, and peak working-set numbers per tier (Floor / Default /
+  Quality / Headroom). The matrix in
+  `docs/superpowers/specs/hardware-model-matrix.md` carries the schema and
+  tier policy only; **benchmark cells stay `TBD` until M1 publishes the
+  table.** M1 is the gate; without the bench table the gate cannot open.

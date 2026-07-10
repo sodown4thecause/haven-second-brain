@@ -15,7 +15,10 @@ checkpoint without having to re-derive the cross-reference graph.
   (driver `haven-memory`, reviewer `haven-architect`).
 - Three launch workflows → `launch-workflows.md`: `Status: reviewed-pass`
   (driver `haven-architect`, reviewer orchestrator review-board).
-- Hardware model matrix: `Status: reviewed-pass`.
+- Hardware model matrix (tier policy + schema): `Status: reviewed-pass`;
+  per-tier benchmark numbers: `Status: deferred-to-M1` —
+  `docs/research/hardware-benchmarks.md` is created and populated in M1
+  and is the gate that allows the first model pull.
 - Alpha success metrics: `Status: reviewed-pass`.
 - Threat model: `Status: reviewed-pass` (driver `haven-threat-model`, reviewer `haven-architect`).
 - Skills under `.agents/skills/haven-*/`: `Status: reviewed-pass`.
@@ -29,9 +32,12 @@ checkpoint without having to re-derive the cross-reference graph.
 - [x] Every ADR cites prior-art and the relevant spec.
 - [x] Every spec cites its boundary ADR.
 - [x] Threat model covers every `AGENTS.md` invariant (§1 — §10).
-- [x] three launch workflows exist with user-visible trust states.
+- [x] Three launch workflows exist with user-visible trust states.
 - [x] Specialist skills reinforce the team spec at
       `docs/harness/haven/team-spec.md`.
+- [ ] Per-tier benchmark numbers in `docs/research/hardware-benchmarks.md`
+      populated for Floor / Default / Quality / Headroom on Windows 16 GB,
+      Apple Silicon 16/18 GB, Linux 16 GB reference machines. **M1 gate.**
 
 ## Open work after R0 lands
 

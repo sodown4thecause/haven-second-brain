@@ -81,8 +81,14 @@ data migration.
 
 ## Acceptance evidence
 
+R0 records the evidence contract. M1 scaffolding adds the test files; no
+test fixtures or test sources exist in this R0 commit and the test
+references below describe the **expected** location and behavior, not a
+green test today.
+
 - 200-note fixture round-trip diff is **zero bytes** for: frontmatter,
   wikilinks, block refs, tables (with alignment), embedded HTML, comments,
   unknown HTML data attributes, unknown tool markup.
-- The fixture test lives at `tests/editor/roundtrip.test.ts` and is gated
-  in CI before any editor surface ships.
+- The fixture test is expected at `tests/editor/roundtrip.test.ts` and will
+  be gated in CI before any editor surface ships. M1 introduces the
+  fixture set and test harness; R0 records the contract.

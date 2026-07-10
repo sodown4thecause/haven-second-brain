@@ -101,9 +101,20 @@ must round-trip through the file set.
 
 ## Acceptance evidence
 
-- `crates/haven-memory` test `file_backed_retain.rs`: deleting the SQLite
-  index, the next reconcile rebuilds it from the file set.
-- `crates/haven-memory` test `consolidation_review.rs`: consolidation runs
-  only idle and produces reviewable proposals; never silent overwrites.
-- `docs/research/longmem-eval-bakeoff.md`: numeric recall results across
-  the founder workflow on file-native, Hindsight, and Mem0.
+R0 records the evidence contract. M6 scaffolding introduces the file-native
+implementation and the bakeoff harness. R0 contains no `crates/haven-memory`
+sources; numeric results in `docs/research/longmem-eval-bakeoff.md` are
+explicitly **TBD until M6**. The references below describe the **expected**
+location and behavior of each acceptance test.
+
+- `crates/haven-memory/tests/file_backed_retain.rs`: deleting the SQLite
+  index, the next reconcile rebuilds it from the file set. Index byte-output
+  must match pre-purge output.
+- `crates/haven-memory/tests/consolidation_review.rs`: consolidation runs
+  only idle and produces reviewable proposals; never silent overwrites. The
+  test exits non-zero if consolidation mutates a memory without leaving a
+  reviewable proposal entry.
+- `docs/research/longmem-eval-bakeoff.md`: numeric recall results
+  (temporal, contradiction, evidence-attribution) are filled in during the
+  M6 bakeoff on the founder workflow fixture. R0 commits the table shape
+  only — every numeric cell is `TBD` and the table's caption states this.

@@ -37,9 +37,9 @@ keeps each specialist's context budget small.
 | --- | --- | --- | --- | --- | --- |
 | Orchestrator | `haven-r0-orchestrator` | whole pipeline | spec, team spec | phase handoffs, R0 exit evidence | human |
 | Prior-art clerk | `haven-prior-art` | Prior-art | spec, GitHub links | `docs/research/prior-art-register.md` | `haven-architect` |
-| Sync architect | `haven-sync-bakeoff` | Bakeoffs | prior-art register | `_workspace/03_sync_bakeoff.md` + ADR outline | `haven-architect` |
-| Local-model architect | `haven-localmodel-bakeoff` | Bakeoffs | prior-art register, hardware matrix | `_workspace/03_localmodel_bakeoff.md` + ADR outline | `haven-architect` |
-| Memory architect | `haven-memory-bakeoff` | Bakeoffs | prior-art register | `_workspace/03_memory_bakeoff.md` + ADR outline | `haven-architect` |
+| Sync architect | `haven-sync` | Bakeoffs | prior-art register | `docs/adr/005-sync-collaboration.md` | `haven-architect` |
+| Local-model architect | `haven-localmodel` | Bakeoffs | prior-art register, hardware matrix | `docs/adr/004-local-runtime-and-network-posture.md`, `docs/adr/007-local-model-selection.md`, `docs/superpowers/specs/research-selector.md` | `haven-architect` |
+| Memory architect | `haven-memory` | Bakeoffs | prior-art register | `docs/adr/006-memory-engine.md` | `haven-architect` |
 | Research-selector spec author | `haven-research-selector` | Specs | local-model ADR | `docs/superpowers/specs/research-selector.md` | `haven-architect` |
 | Architect / ADR reviewer | `haven-architect` | ADRs + Specs | all bakeoffs | signed ADRs under `docs/adr/` | orchestrator |
 | Threat-modeler | `haven-threat-model` | Threat model | all ADRs, prior-art | `docs/research/threat-model.md` | `haven-architect` |
@@ -52,30 +52,29 @@ does not fit a skill.
 
 ## 4. Handoff Contract
 
-All handoffs are markdown files under `_workspace/`. Each phase produces
-exactly one artifact named `{stage}_{topic}.md`. Reviewers write their review
-into the same file under a `## Review` heading before the next stage begins.
+Every phase lands its **durable artifact** in the canonical path
+(`docs/adr/`, `docs/superpowers/specs/`, `docs/research/`, or
+`.agents/skills/`). The orchestrator's scratchpad in `_workspace/` carries the
+running pipeline state — objective brief, ADR index, status trackers, PR
+body draft — not the durable content.
 
 ```
-_workspace/
-  00_objective.md                   # problem brief; orchestrator owns.
-  01_prior_art.md                   # soft draft, final at docs/research/.
-  02_design_invariants.md           # already captured in docs/superpowers/specs/.
-  03a_sync_bakeoff.md
-  03b_localmodel_bakeoff.md
-  03c_memory_bakeoff.md
-  04_adrs_index.md                  # cross-reference of docs/adr/.
-  05_research_selector_spec.md      # draft; final at docs/superpowers/specs/.
-  06_threat_model.md                # draft; final at docs/research/.
-  07_hardware_matrix.md             # same.
-  08_prior_art_register.md          # same.
-  09_r0_exit_evidence.md            # R0 gate artifact
+_workspace/                            # orchestrator scratchpad only
+  00_objective.md                       # problem brief; orchestrator owns.
+  04_adrs_index.md                      # cross-reference of docs/adr/.
+  09_r0_exit_evidence.md                # status tracker for the gate.
+  pr_body.md                            # PR description draft.
+docs/adr/                               # durable ADRs (incl. 000-r0-exit-evidence.md)
+docs/superpowers/specs/                 # durable specs.
+docs/research/                          # durable research artifacts.
+.agents/skills/haven-*/SKILL.md        # durable specialist skills.
 ```
 
 Stage transitions require the producer to mark `Status: ready-for-review`
-and the reviewer to mark `Status: reviewed-pass` or
-`Status: reviewed-fix`. The orchestrator only advances when the artifact is
-`reviewed-pass`.
+on the durable artifact and the reviewer to mark `Status: reviewed-pass` or
+`Status: reviewed-fix`. The orchestrator only advances when the durable
+artifact (not a scratchpad stub) is `reviewed-pass`, and it records the
+status in `_workspace/09_r0_exit_evidence.md`.
 
 ## 5. Failure Policy
 
@@ -107,7 +106,10 @@ referenced from `_workspace/09_r0_exit_evidence.md`:
   concrete adopt / fork / reimplement decision.
 - Static research selector and Knowledge Diff evaluation spec exists.
 - Threat model exists and links to every stated product invariant.
-- Hardware + model support matrix exists with reference measurements.
+- Hardware + model support matrix exists with schema + tier policy;
+      per-platform reference measurements live in
+      `docs/research/hardware-benchmarks.md` (created in M1, gated on
+      the first model pull).
 - Prior-art and license register covers every "hard feature" category from the
   approved design.
 - Old implementation code is removed from this branch but preserved in git

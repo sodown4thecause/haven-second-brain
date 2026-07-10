@@ -40,10 +40,14 @@ unrelated staged changes. We need a policy that:
 
 **Staging isolation:**
 
-- Stage only `docs/*.md`, `agents/notes/*.md`, or whichever paths Haven
-  owns. Use `git2`'s index API with `update_index_from_tree` on a path
-  whitelist, or the equivalent exact-path API.
-- Never read or rewrite the user's existing index entries.
+- Stage only paths Haven owns: `docs/**/*.md`, `.agents/skills/**/*.md`,
+  `docs/superpowers/specs/**/*.md`, plus the explicit user-vault paths the
+  user has registered (e.g. `notes/**/*.md` if the vault root is named
+  `notes`). Use `git2`'s index API with `update_index_from_tree` on a
+  recursive path whitelist, or the equivalent exact-path API.
+- Never read or rewrite the user's existing index entries for paths
+  outside Haven's whitelist. Off-tree changes are preserved and never
+  absorbed into a Haven commit.
 
 **Atomic write:**
 
@@ -100,10 +104,18 @@ unrelated staged changes. We need a policy that:
 
 ## Acceptance evidence
 
-- `crates/haven-git` integration test `safe_existing_vault.rs` opens a real
-  Obsidian fixture, runs the compatibility report, asserts zero file
-  mutations before opt-in.
-- `crates/haven-git` test `expected_hash_replace.rs` proves atomic replace
-  fails when the pre-write hash does not match — no silent overwrites.
-- `crates/haven-git` test `symlink_confinement.rs` rejects symlinks that
+R0 records the evidence contract. M1 scaffolding introduces
+`crates/haven-git` and the Git policy test fixtures. R0 contains no crate
+sources; the references below describe the **expected** location and
+behavior of each acceptance test.
+
+- `crates/haven-git/tests/safe_existing_vault.rs`: opens a real Obsidian
+  fixture, runs the compatibility report, asserts zero file mutations
+  before the user opts in to Haven ownership.
+- `crates/haven-git/tests/expected_hash_replace.rs`: atomic replace fails
+  when the pre-write hash does not match — no silent overwrites.
+- `crates/haven-git/tests/symlink_confinement.rs`: rejects symlinks that
   resolve outside the vault.
+- `crates/haven-git/tests/off_tree_user_changes_preserved.rs`: pre-existing
+  off-tree staged changes survive a Haven commit, with a side-by-side
+  conflict file when divergent edits overlap.

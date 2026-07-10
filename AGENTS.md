@@ -71,7 +71,7 @@ Build, test, verify (introduced in Phase 1):
 - `cargo test`
 - `npm run typecheck` (alias `tsc --noEmit`)
 - `npm run lint -- --max-warnings 0`
-- `node scripts/skills-ref-validate.mjs skills/`
+- `node scripts/skills-ref-validate.mjs .agents/skills/`
 - `node scripts/okf-lint.mjs docs/fixtures/bundle.md`
 
 Branch convention: `cursor/<descriptive-name>-d85e` for short-lived agent work.

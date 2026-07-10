@@ -23,10 +23,10 @@ URL or the local ADR that records the verdict.
 | Project | Repo | License | Reusable modules | Decision | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | CodeMirror 6 + `@codemirror/lang-markdown` | [codemirror/lang-markdown](https://github.com/codemirror/lang-markdown) | MIT | Markdown language, decoration-based syntax, modular extension API | Adopt | [ADR-002](../adr/002-editor-roundtrip.md) |
-| Milkdown | [Milkdown](https://github.com/Milkdown/milkdown) | MIT | ProseMirror core, plugin model, rich block layer | Adapt (reviewed, deferred) | P0.2 spike notes |
-| SilverBullet | [silverbullet](https://github.com/silverbulletmd/silverbullet) | MIT | Pager-based MD shell, expression language | Reimplement (model too coupled) | spike notes |
-| BlockSuite | block-suite/blocksuite | Apache-2.0 | Block tree, Yjs-backed editing | Reimplement (Yjs baggage) | P0.2 spike notes |
-| Mermaid/KaTeX (third-party renderers) | per project | MIT | Diagram and math rendering | Adopt (out-of-process render only) | P2.2 retrieval spec |
+| Milkdown | [Milkdown](https://github.com/Milkdown/milkdown) | MIT | ProseMirror core, plugin model, rich block layer | Adapt (reviewed, deferred) | CodeMirror 6 wins the bakeoff — see [ADR-002](../adr/002-editor-roundtrip.md) §Decision; no separate spike notes retained post-rebuild |
+| SilverBullet | [silverbullet](https://github.com/silverbulletmd/silverbullet) | MIT | Pager-based MD shell, expression language | Reimplement (model too coupled) | [ADR-002](../adr/002-editor-roundtrip.md) §Alternatives considered |
+| BlockSuite | block-suite/blocksuite | Apache-2.0 | Block tree, Yjs-backed editing | Reimplement (Yjs baggage) | [ADR-002](../adr/002-editor-roundtrip.md) §Alternatives considered |
+| Mermaid/KaTeX (third-party renderers) | per project | MIT | Diagram and math rendering | Adopt (out-of-process render only) | [ADR-002](../adr/002-editor-roundtrip.md) §Decision; rendering lives in the editor surface, not in the canonical text |
 
 CodeMirror 6 wins because the round-trip ADR runs in-place edits against the
 canonical text and proves lossless behavior for frontmatter, wikilinks,
@@ -36,10 +36,10 @@ tables, embedded HTML, and unknown syntax.
 
 | Project | Repo | License | Reusable modules | Decision | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| Obsidian Importer | [obsidianmd/obsidian-importer](https://github.com/obsidianmd/obsidian-importer) | AGPL-3.0 | Format adapters for Notion/Evernote/etc. | UX + adapter patterns only | ADR-003 (open-in-place rule) |
-| jyyzsed/Notion-export-cleaner | community | MIT | Notion zip normalization | Reuse via opinionated adapter (LGPL reviewed) | P3.1 importer plan |
-| Any-Block / Logseq block extractor | community | AGPL-3.0 | Block identity heuristics | UX + data model only | P3.1 importer plan |
-| Tana JSON loader | community | MIT | Tana export parsing | Defer until alpha user demand | P3.1 (Tana can wait) |
+| Obsidian Importer | [obsidianmd/obsidian-importer](https://github.com/obsidianmd/obsidian-importer) | AGPL-3.0 | Format adapters for Notion/Evernote/etc. | UX + adapter patterns only | [ADR-003-git-write-policy.md §Cradle reset / open-in-place](../adr/003-git-write-policy.md); importer plan surfaces in M3 (see `docs/superpowers/specs/launch-workflows.md`) |
+| jyyzsed/Notion-export-cleaner | community | MIT | Notion zip normalization | Reuse via opinionated adapter (LGPL reviewed) | M3 importer plan — no separate plan file in R0 |
+| Any-Block / Logseq block extractor | community | AGPL-3.0 | Block identity heuristics | UX + data model only | M3 importer plan — no separate plan file in R0 |
+| Tana JSON loader | community | MIT | Tana export parsing | Defer until alpha user demand | M3 importer plan — no separate plan file in R0 |
 
 The desktop app is Apache-2.0; importing AGPL importers directly would require
 either licensing review or adaptation of format knowledge only.
@@ -48,9 +48,9 @@ either licensing review or adaptation of format knowledge only.
 
 | Project | Repo | License | Reusable modules | Decision | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| Obsidian Web Clipper | [obsidian-md/obsidian-web-clipper](https://github.com/obsidianmd/obsidian-clipper) | AGPL-3.0 | Native Messaging protocol, readability profile | Borrow UX and Native Messaging flow only | P3.2 browser extension plan |
-| Mozilla Readability.js | [mozilla/readability](https://github.com/mozilla/readability) | Apache-2.0 | Article extractor | Adopt via Native Messaging sidecar | P3.2 |
-| Mozilla PDF.js | [mozilla/pdf.js](https://github.com/mozilla/pdf.js) | Apache-2.0 | PDF text extraction in sidecar | Adopt (later) | threat-model.md |
+| Obsidian Web Clipper | [obsidian-md/obsidian-web-clipper](https://github.com/obsidianmd/obsidian-clipper) | AGPL-3.0 | Native Messaging protocol, readability profile | Borrow UX and Native Messaging flow only | [threat-model.md §Adversary — Poisoned scraper target](threat-model.md); browser-extension plan surfaces in M3 |
+| Mozilla Readability.js | [mozilla/readability](https://github.com/mozilla/readability) | Apache-2.0 | Article extractor | Adopt via Native Messaging sidecar | [docs/superpowers/specs/research-selector.md](../superpowers/specs/research-selector.md) — static tool registry |
+| Mozilla PDF.js | [mozilla/pdf.js](https://github.com/mozilla/pdf.js) | Apache-2.0 | PDF text extraction in sidecar | Adopt (later) | [threat-model.md §Adversary — Side-loaded imported vault](threat-model.md) |
 
 Native Messaging is the only secure browser -> desktop channel; HTTPS /
 remote API / websocket-from-page approaches are explicitly disallowed by the
@@ -58,15 +58,17 @@ no-inbound-port invariant.
 
 ## 4. Sync / E2EE collaboration
 
-See `docs/adr/005-sync-collaboration.md` for the verdict row. Bakeoff evidence
-lives under `_workspace/03a_sync_bakeoff.md` (artifact) and is summarized here:
+See `docs/adr/005-sync-collaboration.md` for the verdict row. The
+orchestrator scratchpad in `_workspace/04_adrs_index.md` cross-references
+the durable ADR; no separate `_workspace/03a_sync_bakeoff.md` stub is
+retained post-rebuild.
 
 | Project | Repo | License | Status | Comment |
 | --- | --- | --- | --- | --- |
 | any-sync | [anyproto/any-sync](https://github.com/anyproto/any-sync) | Apache-2.0 | Strong reference, no fork | Spaces + permissions + history + self-host port |
 | Syncthing | [syncthing/syncthing](https://github.com/syncthing/syncthing) | MPL-2.0 | Reference | Mature file sync; encryption model is canonical |
 | Automerge / Loro | automerge / loro | MIT | Reference only (not adopted) | Live co-editing is non-goal; reconcile-always stays primary |
-| Minimal encrypted Git-envelope relay | new | Apache-2.0 | Adapt: client + relay per ADR | Sync native envelopes over BORQ-style opaque store |
+| Minimal encrypted Git-envelope relay | new | AGPL-3.0 (per `AGENTS.md §6`) | Adapt: client + relay per ADR | Sync native envelopes over a BORQ-style opaque store. Server is AGPL-3.0 so users can self-host and copyleft improvements; the desktop client stays Apache-2.0. |
 | Seafile | haiwen/seafile | AGPL-3.0 | Interoperability only | Not an embedded foundation |
 | git-remote-gcrypt | AGPL-3.0 | Reference only | Useful protocol precedent; not default |
 
@@ -77,10 +79,10 @@ spaces + Git-compatible envelopes + native Rust relay under `crates/haven-relay/
 
 | Project | Repo | License | Reusable modules | Decision | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| modelcontextprotocol/servers | [mcp/servers](https://github.com/modelcontextprotocol/servers) | MIT | Reference TypeScript server skeleton | Adapt to Rust crate | ADR-MCP-tool-shape |
-| zettelkasten-mcp | [entanglr/zettelkasten-mcp](https://github.com/entanglr/zettelkasten-mcp) | MIT | Vault search/read tool shape | UX only | P2.7 stdio plan |
-| brain.md | [mi4uu/brain.md](https://github.com/mi4uu/brain.md) | MIT | Conversation-to-doc recipe | UX only | P2.5 transcripts |
-| Obsidian MCP Server | [smith-and-web/obsidian-mcp-server](https://github.com/smith-and-web/obsidian-mcp-server) | MIT | Read-only tool shapes | Adapt | P2.7 stdio plan |
+| modelcontextprotocol/servers | [mcp/servers](https://github.com/modelcontextprotocol/servers) | MIT | Reference TypeScript server skeleton | Adapt to Rust crate (`crates/haven-mcp`) | [threat-model.md §Adversary — Malicious MCP client](threat-model.md); tool-shape ADR surfaces in M2/P2 (no separate file in R0) |
+| zettelkasten-mcp | [entanglr/zettelkasten-mcp](https://github.com/entanglr/zettelkasten-mcp) | MIT | Vault search/read tool shape | UX only | [docs/superpowers/specs/research-selector.md](../superpowers/specs/research-selector.md) — typed tool registry |
+| brain.md | [mi4uu/brain.md](https://github.com/mi4uu/brain.md) | MIT | Conversation-to-doc recipe | UX only | [ADR-006](../adr/006-memory-engine.md) §Memory inbox UX — reviewable proposals |
+| Obsidian MCP Server | [smith-and-web/obsidian-mcp-server](https://github.com/smith-and-web/obsidian-mcp-server) | MIT | Read-only tool shapes | Adapt | [docs/superpowers/specs/research-selector.md](../superpowers/specs/research-selector.md) — typed tool registry |
 
 The haven-mcp server is a versioned headless executable with a stable JSON
 schema (per AGENTS.md `§9`). External clients must not depend on a hidden
@@ -90,21 +92,17 @@ Tauri window.
 
 | Project | Repo | License | Reusable modules | Decision | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| sqlite-vec | [asg017/sqlite-vec](https://github.com/asg017/sqlite-vec) | Apache-2.0 + commercial dual | SQLite extension for vectors | Adopt via vendored loadable extension | P2.2 embed pipeline (deferred to Phase 2) |
-| SQLite's own FTS5 | bundled | public-domain | Full-text search | Adopt | P1.4 indexer |
-| Lance, hnswlib, faiss, qdrant — server based | per project | various | Reject | Aspirational comparison: each opens a TCP port or adds Docker | threat model |
-
-The chosen pipeline stays single-writer SQLite via FTS5 then `sqlite-vec`.
-WAL discipline + content-hash revisions keep rebuild-from-files faithful
-(see `crates/haven-index/`).
+| sqlite-vec | [asg017/sqlite-vec](https://github.com/asg017/sqlite-vec) | Apache-2.0 + commercial dual | SQLite extension for vectors | Adopt via vendored loadable extension | [ADR-007](../adr/007-local-model-selection.md) §Embedding default; in-process extension load — no second canonical store |
+| SQLite's own FTS5 | bundled | public-domain | Full-text search | Adopt | [ADR-001](../adr/001-okf-adoption.md) + [ADR-007](../adr/007-local-model-selection.md); rebuild-from-files is the FTS5 + derived FTS rebuild |
+| Lance, hnswlib, faiss, qdrant — server based | per project | various | Reject | Aspirational comparison: each opens a TCP port or adds Docker | [threat-model.md §Adversary — Compromised relay / second source of truth](threat-model.md) |
 
 ## 7. PDF / Zotero / research lane
 
 | Project | Repo | License | Reusable modules | Decision | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| Obsidian Zotero Integration | [community plugin](https://github.com/obsidian-community/obsidian-zotero-integration) | MIT | Annotation extraction patterns | Reimplement (not adopt) | P-PDF (out of R0 scope; design concern noted) |
-| Zotero Reader | [zotero/reader](https://github.com/zotero/reader) | AGPL-3.0 | Reader UI patterns | UX only | P-PDF |
-| Zotero Better Notes | [community plugin](https://github.com/windingwind/zotero-better-notes) | MIT | Markdown export profile | UX only | P-PDF |
+| Obsidian Zotero Integration | [community plugin](https://github.com/obsidian-community/obsidian-zotero-integration) | MIT | Annotation extraction patterns | Reimplement (not adopt) | M3+ PDF/Zotero ADR (not yet written); R0 records the lane only |
+| Zotero Reader | [zotero/reader](https://github.com/zotero/reader) | AGPL-3.0 | Reader UI patterns | UX only | M3+ PDF/Zotero ADR (not yet written); R0 records the lane only |
+| Zotero Better Notes | [community plugin](https://github.com/windingwind/zotero-better-notes) | MIT | Markdown export profile | UX only | M3+ PDF/Zotero ADR (not yet written); R0 records the lane only |
 
 R0 records the lane but does not commit license-pinning code. The
 follow-on ADR for PDF/Zotero must decide whether citations come from a
@@ -127,9 +125,9 @@ candidates never become second sources of truth.
 
 | Project | Repo | License | Reusable modules | Decision | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| whisper.cpp | [ggml-org/whisper.cpp](https://github.com/ggml-org/whisper.cpp) | MIT | Self-contained C++ transcription library | Adopt via audited Rust binding or stdio sidecar | P3.6 voice capture plan |
-| sherpa-onnx | [k2-fsa/sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) | Apache-2.0 | Streaming ASR runtime | Adapt as fallback if whisper.cpp path falters | P3.6 |
-| OpenSW | [liebe-magi/OpenSW](https://github.com/liebe-magi/OpenSW) | MIT | Tauri + whisper.cpp prototype | UX and packaging | P3.6 |
+| whisper.cpp | [ggml-org/whisper.cpp](https://github.com/ggml-org/whisper.cpp) | MIT | Self-contained C++ transcription library | Adopt via audited Rust binding or stdio sidecar | [ADR-004](../adr/004-local-runtime-and-network-posture.md) §Outbound / typing posture; voice-capture plan surfaces in M3 |
+| sherpa-onnx | [k2-fsa/sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) | Apache-2.0 | Streaming ASR runtime | Adapt as fallback if whisper.cpp path falters | ADR-004 §Engine lifecycle + 30 s idle shutdown |
+| OpenSW | [liebe-magi/OpenSW](https://github.com/liebe-magi/OpenSW) | MIT | Tauri + whisper.cpp prototype | UX and packaging | Tauri sidecar shape per ADR-004 |
 
 R0 verdict: whisper.cpp via `--stdio-server` style wrapper. Never an HTTP
 service. Memory budget keeps whisper base under ~388 MB and small under
@@ -153,10 +151,10 @@ Anything that violates the above triggers an R0 re-review.
 
 ## 11. Local model + inference runtime (LLM, embedding, transcription)
 
-See `docs/adr/004-local-runtime-and-network-posture.md` for the loopback +
-network posture and `docs/adr/007-local-model-selection.md` for the per-tier
-chatter/embedding matrix. This row covers the runtime side of the same
-decision: subprocesses, sidecars, and binding contracts.
+See `docs/adr/004-local-runtime-and-network-posture.md` for the IPC-pipe
++ network posture and `docs/adr/007-local-model-selection.md` for the
+per-tier chatter/embedding matrix. This row covers the runtime side of the
+same decision: subprocesses, sidecars, and binding contracts.
 
 | Project | Repo | License | Reusable modules | Decision | Evidence |
 | --- | --- | --- | --- | --- | --- |
@@ -169,8 +167,10 @@ decision: subprocesses, sidecars, and binding contracts.
 | Crawl4AI | [unclecode/crawl4ai](https://github.com/unclecode/crawl4ai) | Apache-2.0 | Self-hosted extract + crawl | Adapt as optional self-hosted provider | research-selector.md |
 | Playwright (browser) | [microsoft/playwright](https://github.com/microsoft/playwright) | Apache-2.0 | Sandboxed browser automation | Adapt (interactive pages only; vault/keychain/sync access disabled) | threat-model.md §Adversary — Poisoned scraper target |
 
-Hard requirements referenced from `AGENTS.md §3 / §5 / §9`: bind loopback
-only, no inbound port, static tool registration, fetched content cannot
-trigger privileged tools. R0 record survives even when an Ollama release
-rebases; the digest + chat template + license + quantization pin is the
-release contract.
+Hard requirements referenced from `AGENTS.md §3 / §5 / §9`: IPC pipe (Unix
+domain socket / Windows named pipe) is the default engine transport; loopback
+TCP exists only as a documented platform fallback when no IPC primitive is
+available, no inbound port ever opens by default, static tool registration,
+fetched content cannot trigger privileged tools. R0 record survives even
+when an Ollama release rebases; the digest + chat template + license +
+quantization pin is the release contract.

@@ -105,8 +105,11 @@ R0 exit test green when:
       everything else cross-references them by number.
 - [x] Threat-model invariant mapping row exists for every
       `AGENTS.md` invariant (§1 — §10).
-- [x] Hardware matrix declares concrete benchmarks before any model
-      pull.
+- [ ] Hardware matrix declares concrete benchmarks before any model
+      pull. (R0 ships the schema and tier policy only — the per-tier
+      benchmark table lives in
+      `docs/research/hardware-benchmarks.md`, which is created and filled
+      during M1. M1 is the gate that opens the first model pull.)
 - [x] Three launch workflows exist with user-visible trust states.
 - [x] Restart boundary observed; old code preserved in git history.
 

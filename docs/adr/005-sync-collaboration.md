@@ -107,9 +107,23 @@ borrow the conflict-side-by-side semantics only.
 
 ## Acceptance evidence
 
-- Two-device and three-device integration tests prove end-to-end encrypt,
-  decrypt, and reconcile without the relay seeing plaintext.
-- Rotation failure blocks new sharing — exercised in the rotation test
-  harness.
-- Delete derived index, memory, and research-cache state, then rebuild
-  from canonical files passes.
+R0 records the evidence contract. M3 scaffolding adds the test fixtures and
+ci harness. R0 contains no `crates/haven-sync` or `crates/haven-relay`
+sources; the references below describe the **expected** location and
+behavior of each acceptance test.
+
+- `crates/haven-sync/tests/two_device_e2e.rs`: two-device pilot encrypts,
+  uploads to a relay fixture, decrypts, and reaches parity without the
+  relay reading plaintext. Asserts the relay sees only ciphertext and the
+  per-device routing tag.
+- `crates/haven-sync/tests/three_device_e2e.rs`: three-device integration
+  test against `crates/haven-relay/tests/fixtures/relay_fixture.toml` —
+  exercises invitation, replay protection, and revocation paths.
+- `crates/haven-sync/tests/rotation_failure_blocks_sharing.rs`: an
+  injected rotation failure refuses to send new envelopes, never falling
+  back to plaintext.
+- `crates/haven-sync/tests/replay_protection.rs`: a recorded envelope
+  is replayed against the relay fixture and must be rejected.
+- `crates/haven-index/tests/rebuild_after_purge.rs`: derived index,
+  memory cache, and research cache are purged, then rebuilt from the
+  canonical file set; assertion is byte-equal index output.
