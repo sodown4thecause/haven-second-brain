@@ -151,7 +151,10 @@ impl Index {
         let conn = self.inner.lock();
         // Drop any edges that reference the deleted path so
         // `edges_from()` never returns dangling references.
-        conn.execute("DELETE FROM edges WHERE src = ?1 OR dst = ?1", params![&key])?;
+        conn.execute(
+            "DELETE FROM edges WHERE src = ?1 OR dst = ?1",
+            params![&key],
+        )?;
         conn.execute("DELETE FROM fts WHERE path = ?1", params![&key])?;
         conn.execute("DELETE FROM files WHERE path = ?1", params![&key])?;
         Ok(())
@@ -342,7 +345,10 @@ mod tests {
         index.add_edge(&a, &b, "wikilink").unwrap();
         index.delete(&a).unwrap();
         let edges = index.edges_from(&a).unwrap();
-        assert!(edges.is_empty(), "edges pointing at deleted path must be purged");
+        assert!(
+            edges.is_empty(),
+            "edges pointing at deleted path must be purged"
+        );
         let edges = index.edges_from(&b).unwrap();
         assert!(
             edges.is_empty(),

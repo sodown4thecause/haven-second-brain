@@ -602,4 +602,3 @@ mod tests {
         assert!(still_staged, "user-staged entry must survive a Haven commit");
     }
 }
-}
