@@ -168,9 +168,7 @@ fn parse_permissive(raw: &str, body: &str, had_frontmatter: bool) -> Result<OkfD
         });
     }
     let mut fm = Frontmatter::empty();
-    if let Ok(serde_yaml::Value::Mapping(map)) =
-        serde_yaml::from_str::<serde_yaml::Value>(raw)
-    {
+    if let Ok(serde_yaml::Value::Mapping(map)) = serde_yaml::from_str::<serde_yaml::Value>(raw) {
         for (k, v) in map {
             let Some(key) = k.as_str() else {
                 // Non-string keys cannot round-trip; skip.
