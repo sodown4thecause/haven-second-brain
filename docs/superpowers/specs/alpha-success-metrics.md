@@ -23,10 +23,18 @@ Targets:
 
 - **Safe-vault-open completion rate**: percentage of external testers who
   reach the "first note is readable" state without losing data on a real
-  vault. Target: ≥ 80%.
+  vault. Target: ≥ 80%. The governing ADR is
+  `docs/superpowers/specs/safe-existing-vault.md`; the contract is the
+  `CompatibilityReport` schema, the opt-in event semantics, and the
+  dirty-worktree detector — see also `docs/adr/008-editor-shell-completion.md`,
+  `docs/adr/009-pkm-ux-surface.md`, `docs/adr/010-bases-lite-derived-view.md`.
 - **Zero destructive or silent rewrites**: a hard invariant. Per
   `ADR-003`, every write goes through the OKF linter + dual-identity
-  pipeline. Any silent rewrite is a bug.
+  pipeline. Any silent rewrite is a bug. The M1 acceptance test is
+  `crates/haven-git/tests/safe_existing_vault.rs` (byte-identical
+  pre/post `safe_open`) plus
+  `src/src/tests/bases-lite.test.ts` (round-trip-deletion invariant
+  for saved views).
 - **Approved patch acceptance rate**: percentage of agent-via-MCP patches
   the human approves. Useful signal, not a target.
 
