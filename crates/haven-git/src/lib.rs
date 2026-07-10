@@ -192,9 +192,7 @@ impl VaultWriter {
         // open_or_init() creates the directory on first run; canonicalize
         // must come AFTER, otherwise init for a brand-new vault fails.
         let repo = open_or_init(vault_root)?;
-        vault_root
-            .canonicalize()
-            .map_err(std::io::Error::from)?;
+        vault_root.canonicalize().map_err(std::io::Error::from)?;
         let writer = VaultWriter {
             inner: Arc::new(WriterInner {
                 repo: Mutex::new(repo),
@@ -599,6 +597,9 @@ mod tests {
             .unwrap()
             .get_path(Path::new("notes/user-staged.md"), 0)
             .is_some();
-        assert!(still_staged, "user-staged entry must survive a Haven commit");
+        assert!(
+            still_staged,
+            "user-staged entry must survive a Haven commit"
+        );
     }
 }
