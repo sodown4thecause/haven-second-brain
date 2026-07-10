@@ -232,7 +232,6 @@ fn parse_permissive(raw: &str, body: &str, had_frontmatter: bool) -> Result<OkfD
                     fm.extra.insert(key.to_string(), v);
                 }
             }
-            }
         }
     }
     Ok(OkfDoc {
