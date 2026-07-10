@@ -1,218 +1,90 @@
-# AGENTS.md — Engineering Guidelines for Haven
+# Repository Agents Guide — Haven
 
-Haven is a git-native, agent-native "second brain": a local-first Tauri desktop app
-whose data layer is a plain-text Git repository conforming to the Open Knowledge
-Format (OKF v0.1), with fully offline AI (Gemma 4 via Ollama/llama.cpp), Agent
-Skills (`SKILL.md`), and built-in MCP interop. See `PLAN.md` for the phased build
-plan and architecture decisions.
+Keep this file short and repo-wide. Point to deeper specs and ADRs for detail.
 
-This file is the contract for every agent (and human) working in this repo.
-Read it fully before making changes. When a rule here conflicts with your general
-habits, this file wins.
+## Repo-wide invariants
 
----
+Every ADR, spec, threat-model row, and skill handoff references these by number.
+The durable definitions live in
+`docs/superpowers/specs/2026-07-10-haven-clean-rebuild-design.md §Revised
+Product Invariants`; this file is the durable pointer list.
 
-## 1. Product invariants (never violate)
+1. Files are the only source of truth.
+2. Haven-authored writes are OKF v0.1-conformant; reads are permissive.
+3. Local models are the default; remote providers need explicit opt-in.
+4. Internet sync, collaboration, and web research are first-class.
+5. No inbound network ports. Outbound to configured providers only.
+6. License posture: Apache-2.0 desktop app, AGPL-3.0 relay (self-hostable),
+   permissive reuse for Apache/MIT/BSD, GPL/AGPL reused as UX/data-model only.
+7. Provenance is sacred — durable writes are Git-committed with the correct
+   human vs `Haven Agent (<model>)` author identity; never mixed.
+8. The sync relay cannot decrypt user content, filenames, memories, comments,
+   or attachments; keys live in the OS keychain.
+9. Models get network and write authority only through statically-registered
+   typed tools; fetched content is untrusted evidence.
+10. Offline edits queue and reconcile on reconnect; the app never opens a TCP
+    port on the desktop.
 
-1. **Files are the only source of truth.** User data is Markdown + YAML frontmatter
-   in a Git repo. The SQLite index, vector store, and caches under `.haven/` are
-   derived and must always be rebuildable from the files alone. Never store user
-   data that exists only in the index.
-2. **Local-first, offline-first.** Every free-tier feature must work with the
-   network cable unplugged. No feature may silently call a remote endpoint.
-   Cloud calls happen only through explicit, user-visible configuration.
-3. **No lock-in.** Output formats follow published open standards: OKF v0.1 for
-   documents, Agent Skills for skills, MCP for interop, plain Git for history.
-   Never invent proprietary syntax when a standard field or convention exists.
-4. **Provenance is sacred.** Every write to the user's knowledge repo goes through
-   the Git pipeline with the correct author identity — human author for user
-   edits, `Haven Agent (<model>) <agent@haven.local>` for AI-generated commits.
-   Never batch human and AI changes into one commit.
-5. **Privacy by architecture.** No telemetry without explicit opt-in. No open
-   TCP ports (browser extension uses Native Messaging). E2EE keys never leave
-   the user's devices except via the folder-scoped disclosure-key flow.
+## What
 
-## 2. Repository conventions
+Haven: Git-native, agent-native second brain. Tauri desktop app whose canonical
+data layer is a plain-text Git repository conforming to OKF v0.1, with local-model
+AI (Qwen 3.5 4B Q4 default), E2EE multi-device sync, tool-mediated web research,
+durable file-native agent memory, Agent Skills (`SKILL.md`), and MCP interop.
 
-- **Branches:** `cursor/<descriptive-name>-d85e` for agent work; short-lived,
-  one concern per branch.
-- **Commits:** one logical change per commit, imperative mood
-  ("Add OKF frontmatter linter", not "Added" / "misc fixes"). Reference the
-  plan item when applicable (`[P1.3]`).
-- **PRs:** small and reviewable. The description states what changed, why, and
-  how it was verified. CI must be green before requesting review.
-- **Monorepo layout (once scaffolded):**
-  - `src-tauri/` — Rust core (Tauri app, indexer, git pipeline, MCP server)
-  - `src/` — frontend (TypeScript, BlockSuite editor shell)
-  - `crates/` — shared Rust crates (`okf`, `haven-index`, `haven-git`)
-  - `packages/` — shared TS packages if needed
-  - `docs/` — architecture notes and ADRs
-- **ADRs:** any decision that changes an invariant, a dependency, or a data
-  format gets an Architecture Decision Record in `docs/adr/NNN-title.md`.
+- Canonical paths: `src-tauri/` (Rust core), `src/` (TS frontend), `crates/`
+  (shared Rust crates), `docs/` (specs, ADRs, research), `experiments/`
+  (disposable), `.agents/skills/` (reusable specialist skills for this repo).
+- Source of truth is files (invariant 1). The SQLite index, vector store,
+  memory caches, and research caches under `.haven/` are derived and
+  rebuildable from files.
+- No inbound network ports (invariant 5). Outbound to explicitly configured
+  sync, model, and web-research providers is first-class (invariant 4).
 
-## 3. Rust guidelines (Tauri core, crates)
+## Why
 
-- **Toolchain:** stable Rust, pinned via `rust-toolchain.toml`. Code must be
-  clean under `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings`.
-- **Error handling:** libraries (`crates/*`) define error enums with `thiserror`;
-  the app binary may use `anyhow` at the edges. Never `unwrap()`/`expect()` in
-  production paths — reserve them for tests and genuinely impossible states,
-  with a comment explaining why the state is impossible.
-- **No `unsafe`** without an ADR and a `// SAFETY:` comment proving the invariant.
-- **Async:** tokio only. Never block the async runtime — wrap filesystem-heavy or
-  CPU-heavy work (indexing, embedding, git scans) in `spawn_blocking` or a
-  dedicated worker thread. No `async` in trait signatures without checking
-  object-safety needs.
-- **Concurrency:** prefer message passing (channels) over shared mutable state.
-  If you must share, use `parking_lot` mutexes and hold locks across the
-  narrowest possible scope; never hold a lock across an `.await`.
-- **Data types:** parse, don't validate — convert raw input into typed structs
-  (`serde`) at the boundary and pass types inward. Newtypes for ids and paths
-  (`DocPath`, `SessionId`) instead of bare `String`.
-- **Testing:** unit tests co-located (`#[cfg(test)]`), integration tests in
-  `tests/`. Property tests (`proptest`) for parsers (frontmatter, links,
-  importers). Every bugfix lands with a regression test.
+- The launch wedge is the founder's real vault: capture, cited recall, voice
+  notes, and agent-proposed edits without mass rewrites of existing notes.
+- Every durable change is a Git commit with the correct author identity
+  (invariant 7). Human for user edits; `Haven Agent (<model>)` for AI-generated
+  commits; never mixed.
+- The sync relay cannot decrypt user content (invariant 8). E2EE keys live in
+  the OS keychain.
+- Web research runs only through typed, statically-registered tools
+  (invariant 9). Fetched content is untrusted evidence, not tool instructions.
 
-## 4. Tauri 2 guidelines
+## How
 
-- **IPC:** expose functionality via `#[tauri::command]` with typed,
-  serde-deserializable arguments. Commands are thin — they validate, then call
-  into `crates/` logic. No business logic in command handlers.
-- **Capabilities/permissions:** follow least privilege. Each window gets its own
-  capability set; never grant `fs` or `shell` scope wider than needed. New
-  plugin permissions require justification in the PR description.
-- **Security:** strict CSP; never load remote JS/HTML into the webview; no
-  `dangerousRemoteDomainIpcAccess`. All external content (scraped pages,
-  imported HTML) is sanitized before rendering.
-- **Sidecars (Ollama/llama.cpp):** managed as Tauri sidecars with health checks,
-  graceful shutdown, and version pinning. Never assume a sidecar is running —
-  every call path handles "engine unavailable" with a user-actionable error.
-- **State:** long-lived state lives in `tauri::State` behind typed structs.
-  Background workers (git watcher, indexer) communicate with the UI via events
-  (`emit`), never by polling from the frontend.
+Read before contributing:
 
-## 5. TypeScript & frontend guidelines
+1. `AGENTS.md` (this file) — repo-wide invariants.
+2. `PLAN.md` — milestone map and evidence-linked status.
+3. `docs/harness/haven/team-spec.md` — role topology and handoff contract.
+4. `docs/superpowers/specs/` — approved product and system designs.
+5. `docs/adr/` — durable technical decisions.
+6. `docs/research/` — prior-art studies and benchmarks.
 
-- **Strictness:** `"strict": true`, `noUncheckedIndexedAccess`, no `any`
-  (use `unknown` + narrowing). ESLint + Prettier enforced in CI.
-- **Imports at top of module only.** No inline `import()` in function bodies
-  except documented lazy-loading of heavy UI chunks.
-- **Exhaustiveness:** every `switch` over a union/enum has a `default` branch
-  performing a `never` check so new variants fail compilation:
+Build, test, verify (introduced in Phase 1):
 
-  ```ts
-  default: {
-    const _exhaustive: never = value;
-    throw new Error(`Unhandled variant: ${_exhaustive}`);
-  }
-  ```
+- `cargo fmt --check`
+- `cargo clippy --all-targets -- -D warnings`
+- `cargo test`
+- `npm run typecheck` (alias `tsc --noEmit`)
+- `npm run lint -- --max-warnings 0`
+- `node scripts/skills-ref-validate.mjs .agents/skills/`
+- `node scripts/okf-lint.mjs docs/fixtures/bundle.md`
 
-- **State & data flow:** UI state derives from the Yjs document and Tauri events.
-  Do not duplicate document state into ad-hoc stores; subscribe to the source.
-- **BlockSuite/Yjs:** all document mutations go through BlockSuite transactions —
-  never mutate Yjs types outside a transaction. Custom blocks live in their own
-  package with schema, model, and view separated.
-- **IPC hygiene:** every `invoke()` call is wrapped in a typed client
-  (`src/lib/ipc.ts`) — no raw string command names scattered through components.
+Branch convention: `cursor/<descriptive-name>-d85e` for short-lived agent work.
 
-## 6. Data layer (SQLite index)
+Commits: one logical change per commit, imperative mood, reference the plan item
+(`[P1.3]`, `[R0.2]`). Per `AGENTS.md` rules, no `unsafe` without ADR +
+`// SAFETY:` comment, `thiserror` in libraries, never `unwrap()` in production
+paths, validate LLMs like untrusted input, and treat skill scripts, scraped
+pages, and imported files as hostile.
 
-- **The index is disposable.** Any schema change ships with a bump to
-  `INDEX_SCHEMA_VERSION` and a full-rebuild path; there are no data migrations
-  for derived data — drop and reindex.
-- Access SQLite from a single writer worker (WAL mode, one write connection,
-  many readers). No SQL string concatenation — parameterized queries only.
-- FTS5 for keyword search, `sqlite-vec` for vectors, recursive CTEs for graph
-  queries. Any graph engine beyond that goes behind the `GraphEngine` trait.
-- Keep index rebuild fast: target < 30 s for a 10k-document repo on a mid-range
-  laptop; benchmark in CI when the indexer changes.
+R0 is decision-only. Production feature code is prohibited until R0 exit test
+passes. Disposable experiments live under `experiments/` and cannot be imported
+by production code.
 
-## 7. AI layer
-
-- **Provider abstraction:** all model calls go through the Vercel AI SDK with a
-  single provider factory. Local default is Ollama (`ai-sdk-ollama`); never
-  hardcode a model name at call sites — models are configuration.
-- **Structured output first:** for classification, extraction, and ingestion use
-  `generateObject` with a Zod schema. Free-form generation is only for chat and
-  prose drafting. Validate LLM output like untrusted user input — because it is.
-- **Prompts are code:** system prompts live in versioned files
-  (`src-tauri/prompts/` or `prompts/`), not string literals; changes to prompts
-  get the same review as changes to code.
-- **Embeddings:** EmbeddingGemma, 768-dim stored, Matryoshka truncation allowed
-  for pre-filtering. Embedding versioning: store the model id alongside vectors;
-  a model change triggers reindex, never mixed-model similarity search.
-- **Token discipline:** retrieval and skill loading respect explicit token
-  budgets. Progressive disclosure for skills (metadata → SKILL.md → resources)
-  is mandatory, not optional.
-- **Determinism in tests:** unit tests never call a live model. Use recorded
-  fixtures or fake providers. Integration tests that need a model are opt-in
-  (`HAVEN_TEST_LLM=1`) and excluded from default CI.
-
-## 8. OKF & Agent Skills conformance
-
-- Every document the app writes must be OKF v0.1 conformant: parseable YAML
-  frontmatter with non-empty `type`; recommended fields (`title`, `description`,
-  `resource`, `tags`, `timestamp`) populated when known; unknown frontmatter
-  keys preserved on round-trip; cross-links as inline Markdown links with
-  bundle-relative paths. Reserved files `index.md` / `log.md` follow spec §6/§7.
-- **Be permissive reading, strict writing:** never reject a user's file for
-  missing optional fields or broken links (spec §9); never emit a
-  non-conformant file ourselves.
-- Skills follow the Agent Skills spec exactly: `SKILL.md` frontmatter with
-  `name` (lowercase, hyphenated, ≤64 chars) and `description` (≤1024 chars,
-  says what *and when*); body under 500 lines; deeper material in `references/`;
-  executables in `scripts/`. The built-in linter mirrors `skills-ref validate`.
-
-## 9. MCP guidelines
-
-- The MCP server exposes narrow, well-described tools (`search_brain`,
-  `read_document`, `write_document`, `list_skills`, `recall_memory`, …).
-  Read-only by default; write tools require a per-client user grant persisted
-  and revocable.
-- Every write via MCP goes through the same OKF linter + Git provenance
-  pipeline as in-app edits — no side doors.
-- Treat all inbound MCP tool arguments as untrusted: validate paths against the
-  bundle root (no traversal), size-limit payloads, and rate-limit clients.
-
-## 10. Security checklist (every PR touching these areas)
-
-- No new open network ports. Browser extension traffic uses Native Messaging.
-- Secrets and keys via the OS keychain (Tauri plugin), never files or env vars
-  in the repo. Nothing secret in logs.
-- Path handling: canonicalize and confine to the workspace/bundle root before
-  any filesystem operation.
-- Dependency policy: prefer well-maintained crates/packages; new dependencies
-  need a sentence of justification in the PR; `cargo audit` / `npm audit` run
-  in CI and block on criticals.
-- Anything sandbox-adjacent (skill `scripts/`, scraped content, imported files)
-  is treated as hostile input.
-
-## 11. Testing & CI
-
-- CI gates on: `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test`,
-  `tsc --noEmit`, ESLint, frontend unit tests, and the OKF/skills linter run
-  against fixture bundles.
-- E2E: `tauri-driver`/WebDriver smoke tests for the core loop (create doc →
-  git commit → search finds it → reindex reproduces state).
-- The invariant test that must never be deleted: *delete `.haven/`, reindex,
-  and assert search/graph/embeddings are fully reconstructed.*
-- Write tests at the lowest level that can catch the bug; don't E2E-test what a
-  unit test can cover.
-
-## 12. Performance budgets
-
-- Cold app start to interactive: < 2 s (excluding model load, which is lazy and
-  shows progress).
-- Keystroke-to-render in editor: no LLM or index work on the hot path; indexing
-  is debounced and async.
-- Local chat first-token: < 2 s with the default E4B model on 16 GB RAM.
-- Memory: the app (excluding inference engine) stays under 500 MB RSS with a
-  10k-document repo.
-
-## 13. Writing style for code & docs
-
-- Comments explain *why*, never *what*. No narration comments.
-- Public Rust items get doc comments; public TS exports get TSDoc.
-- User-facing strings live in a central module from day one (future i18n).
-- Docs and ADRs are plain Markdown, wrapped at 100 columns, and updated in the
-  same PR as the behavior they describe.
+Loaded skill orchestrator: `.agents/skills/haven-r0-orchestrator/SKILL.md`
+governs R0 handoffs and is the source of truth for R0 phase ordering.
