@@ -33,6 +33,7 @@ but a component is not retained merely because it already exists.
 Haven is a Git-native, agent-native knowledge environment for people who want:
 
 - Local ownership of Markdown knowledge and Git history.
+- A simple OKF knowledge model instead of proprietary block, tag, or database syntax.
 - Local-model inference without silent remote-model calls.
 - End-to-end encrypted multi-device sync and collaboration over the internet.
 - Durable, reviewable agent memory with source provenance.
@@ -42,21 +43,49 @@ Haven is a Git-native, agent-native knowledge environment for people who want:
 ## Revised Product Invariants
 
 1. Markdown and Git are the canonical knowledge record.
-2. Local models are the default; remote models require explicit configuration.
-3. Internet sync, collaboration, and web research are first-class product capabilities.
-4. The sync relay cannot decrypt user content, filenames, memories, comments, or attachments.
-5. Every durable human, agent, import, memory, and collaboration change retains provenance.
-6. Indexes, caches, external memory engines, and live-collaboration state are derived and
-   rebuildable.
-7. Models receive network and write authority only through typed, policy-controlled tools.
-8. Losing connectivity does not block reading or editing an already-open local vault; operations
-   queue and reconcile when connectivity returns.
-9. The desktop app exposes no inbound network service. It makes outbound connections to explicitly
-   configured sync, search, crawling, memory, and model providers.
+2. Haven-created knowledge follows Google's Open Knowledge Format (OKF) v0.1: YAML frontmatter for
+   structured metadata, a standard Markdown body, standard Markdown links, and reserved
+   `index.md`/`log.md` conventions.
+3. Haven does not invent inline supertags, block-level schemas, proprietary relationship syntax, or
+   another object database. Structured views derive from YAML frontmatter and links.
+4. Local models are the default; remote models require explicit configuration.
+5. Internet sync, collaboration, and web research are first-class product capabilities.
+6. The sync relay cannot decrypt user content, filenames, memories, comments, or attachments.
+7. Every durable human, agent, import, memory, and collaboration change retains provenance.
+8. Indexes, caches, external memory engines, and research caches are derived and rebuildable.
+9. Models receive network and write authority only through typed, policy-controlled tools.
+10. Losing connectivity does not block reading or editing an already-open local vault; operations
+    queue and reconcile when connectivity returns.
+11. The desktop app exposes no inbound network service. It makes outbound connections to explicitly
+    configured sync, search, crawling, memory, and model providers.
 
 These invariants supersede the existing requirement that every free-tier feature work with the
 network disconnected. The restart foundation must update `AGENTS.md`, `PLAN.md`, and the governing
 ADRs together so that repository guidance is internally consistent.
+
+## Static Knowledge Model
+
+Haven adopts the official [Open Knowledge Format v0.1][okf-spec] as its on-disk knowledge contract.
+The format is intentionally small: every non-reserved concept is a UTF-8 Markdown file with
+parseable YAML frontmatter and a non-empty `type`; recommended fields are `title`, `description`,
+`resource`, `tags`, and `timestamp`; unknown keys remain valid and must survive round trips.
+
+Haven uses that flexibility without layering a proprietary schema over it:
+
+- YAML frontmatter is the only structured property surface.
+- Standard Markdown links express relationships; surrounding prose provides their meaning.
+- `index.md` supports progressive disclosure and `log.md` records scoped update history.
+- Bodies remain freeform Markdown. The local AI interprets structure and prose without requiring
+  users to tag individual blocks.
+- Saved tables, lists, filters, backlinks, and graph views are derived projections, not new storage
+  syntax.
+- Haven writes standard Markdown links in new OKF documents while losslessly preserving wikilinks
+  and unknown syntax in existing vaults until the user explicitly migrates them.
+- Reading remains permissive. Haven must tolerate unknown types, unknown keys, broken links, and
+  missing optional fields.
+
+Tana-style supertags, Logseq-style block identity as a universal data model, Notion-style databases,
+and proprietary inline semantics are launch non-goals.
 
 ## Restart Boundary
 
@@ -142,14 +171,15 @@ Add the memory inbox, file-native canonical observations, personal and shared me
 contradiction handling, forgetting, external memory-engine adapters, and evidence-linked reflection
 proposals.
 
-### M8 - Real-time collaboration and beta proof
+### M8 - Founder workflow proof and beta gate
 
-Add live presence and simultaneous editing only after asynchronous collaboration is dependable. Run
-the founder dogfood and external activation tests. Public beta requires the numeric safety,
-collaboration, and activation gates to pass.
+Run the founder dogfood and external activation tests across local editing, asynchronous
+collaboration, cited research, Knowledge Diffs, and durable memory. Public beta requires the numeric
+safety, collaboration, and activation gates to pass.
 
-Teams, marketplace distribution, broad importer coverage, autonomous skill execution, and unrelated
-PKM parity remain later horizons until evidence promotes them.
+Live cursors, simultaneous editing, CRDT session overlays, teams, marketplace distribution, broad
+importer coverage, autonomous skill execution, and unrelated PKM parity remain later horizons until
+evidence promotes them.
 
 ## System Boundaries
 
@@ -200,8 +230,8 @@ protection, and conflict detection.
 
 ### Relay server
 
-Owns opaque object storage, delivery, membership coordination, rate limiting, and encrypted
-presence. It cannot grant itself content access or recover user encryption keys.
+Owns opaque object storage, delivery, membership coordination, delivery receipts, and rate limiting.
+It cannot grant itself content access or recover user encryption keys.
 
 ## E2EE Sync and Collaboration
 
@@ -218,11 +248,8 @@ presence. It cannot grant itself content access or recover user encryption keys.
 
 The first collaboration release includes multi-device sync, invitations, roles, suggestions,
 comments, activity history, and asynchronous review. Live cursors and simultaneous editing are
-deferred until these workflows are trustworthy.
-
-Live editing may use an Automerge- or Loro-style encrypted session overlay. That overlay is derived
-session state and must materialize into reviewed Markdown and Git commits rather than becoming
-another permanent truth.
+outside the active roadmap. Haven must first prove that asynchronous Git provenance, review, and the
+conflict inbox are sufficient for its target workflows.
 
 ### Key model
 
@@ -239,7 +266,7 @@ R0 compares:
 
 - any-sync for E2EE spaces, permissions, history, and self-hosting.
 - Syncthing for mature file synchronization and untrusted-device encryption.
-- Automerge and Loro for convergence and live-session behavior.
+- Automerge and Loro as conflict and convergence references, not planned live-editing dependencies.
 - A minimal encrypted Git-envelope relay for direct compatibility with Haven's canonical data model.
 - Seafile as an interoperability option rather than a presumed native foundation.
 - git-remote-gcrypt as protocol prior art, not a default dependency.
@@ -266,12 +293,47 @@ The local model accesses the internet only through typed research tools:
 3. Search the web within the active research session.
 4. Fetch and extract selected sources within visible budgets.
 5. Treat fetched content as untrusted evidence rather than instructions.
-6. Produce an answer with distinct vault, memory, and web citations.
-7. Optionally save a provenance-linked research document through the normal review and Git pipeline.
+6. Compare extracted claims with high-recall vault and approved-memory retrieval.
+7. Produce an answer with distinct vault, memory, and web citations.
+8. Produce a Knowledge Diff separating novel, corroborating, conflicting, and uncertain claims.
+9. Optionally save a provenance-linked research document through the normal review and Git pipeline.
 
 Web research is session-scoped by default. Once enabled for a request, the model may search and
 fetch within visible domain, request, time, depth, and content-size budgets without asking before
 every page.
+
+### Static research-tool routing
+
+Research tools are registered statically at build time. The context orchestrator does not discover
+or inject dynamic tool definitions during a request.
+
+A small, fast local selector model receives the user's intent plus compact context metadata and
+emits a schema-validated `ResearchIntent` enum: `search`, `fetch`, `crawl`, `extract`, `interact`,
+or `no_web`. A deterministic policy router validates the selection, applies permissions and budgets,
+and invokes the corresponding static wrapper. The selector cannot call tools directly.
+
+The larger reasoning model receives only normalized evidence, provenance, and retrieval diagnostics.
+It does not need every provider schema in its prompt. Low-confidence or invalid selector output
+falls back to bounded search or `no_web` according to deterministic policy rather than loading tools
+dynamically.
+
+### Generative Citation Intelligence
+
+After web extraction, Haven creates a Knowledge Diff against the local vault and approved memories:
+
+- **Novel:** no materially equivalent claim was found in the retrieved local corpus.
+- **Corroborating:** the web evidence independently supports an existing local claim.
+- **Conflicting:** the web evidence disagrees with or supersedes a local claim.
+- **Uncertain:** retrieval coverage or evidence quality is insufficient for classification.
+
+"Novel" means not found by the recorded retrieval run; it is not proof that the information is
+absent from the entire vault. The UI shows the query, retrieval coverage, compared local passages,
+web sources, and classification confidence.
+
+Saving a Knowledge Diff creates a reviewable OKF document such as `type: research-diff` with source
+URLs, access timestamps, compared local concept links, and claim-level citations. The agent proposes
+updates to affected concepts as separate Git diffs; it never silently merges crawled claims into the
+vault.
 
 ### Provider policy
 
@@ -376,6 +438,7 @@ a managed cloud service; it may only become an explicit optional provider.
 - Path confinement, symlink handling, serialization, envelope parsing, and key rotation.
 - Git staging isolation, author provenance, recovery, and deterministic conflict behavior.
 - Context token budgets, deduplication, source attribution, and memory-scope isolation.
+- Static selector schema validation, routing fallback, and the absence of dynamic tool registration.
 - URL validation, redirect handling, MIME limits, SSRF defenses, and normalized provider output.
 
 ### Golden fixtures
@@ -383,6 +446,7 @@ a managed cloud service; it may only become an explicit optional provider.
 - Lossless Markdown round trips for frontmatter, wikilinks, tables, embedded HTML, comments, and
   unknown syntax.
 - Provider-normalized output for static, dynamic, malformed, oversized, and hostile web pages.
+- Knowledge Diff classification for novel, corroborating, conflicting, and uncertain evidence.
 - Memory contradiction, supersession, deletion, and reflection proposals.
 
 ### Integration tests
@@ -390,15 +454,15 @@ a managed cloud service; it may only become an explicit optional provider.
 - Two-device and three-device E2EE sync through an untrusted relay.
 - Invitations, revocation, replay, rollback, conflict, and interrupted catch-up.
 - Hosted and self-hosted web and memory provider adapters using recorded fixtures by default.
-- Deterministic fake-model tests for tool selection, research stopping, citations, and memory
-  proposals.
+- Deterministic fake-model tests for selector routing, research stopping, Knowledge Diffs,
+  citations, and memory proposals.
 
 ### End-to-end and security tests
 
 - Each launch workflow receives a permanent end-to-end acceptance test.
 - Test malicious collaborators, poisoned notes, hostile pages, SSRF, prompt injection, oversized
   inputs, secret-exfiltration attempts, and compromised relay responses.
-- Delete derived index, memory, and live-session state, then rebuild from canonical files.
+- Delete derived index, memory, and research-cache state, then rebuild from canonical files.
 
 ### Performance tests
 
@@ -416,9 +480,11 @@ R0 produces:
 - Updated repository invariants in `AGENTS.md`.
 - Three validated launch workflow specifications.
 - The editor round-trip benchmark and ADR.
+- The OKF v0.1 adoption, compatibility, and migration ADR.
 - The Git write, provenance, recovery, and conflict-policy ADR.
 - The E2EE sync and collaboration bakeoff and ADR.
 - The local-model, context-orchestration, and web-research bakeoff and ADR.
+- The static research selector and Knowledge Diff evaluation fixtures.
 - The memory-engine bakeoff and ADR.
 - The hardware and model support matrix.
 - The unified threat model.
@@ -436,3 +502,5 @@ R0 is complete only when:
 
 After R0, the next implementation plan covers only M1. Later milestones receive their own design and
 plan when their prerequisites are verified.
+
+[okf-spec]: https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md
